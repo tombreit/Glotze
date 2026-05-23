@@ -25,7 +25,7 @@ jobs:
       options: --privileged
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
@@ -40,7 +40,7 @@ jobs:
 
       - name: Attach bundle to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: glotze.flatpak
           generate_release_notes: true
