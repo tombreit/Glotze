@@ -10,11 +10,11 @@ on:
 permissions:
   contents: write
 
-# Cancel stale PR builds. Main / tag builds always run to completion so
+# Cancel stale PR and main builds. Tag builds always run to completion so
 # release artifacts aren't accidentally dropped.
 concurrency:
   group: flatpak-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build:
