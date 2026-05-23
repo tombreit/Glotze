@@ -14,6 +14,31 @@ does not need to scrape per-channel sites.
 
 ---
 
+## Install
+
+Each [GitHub release](https://github.com/tombreit/Glotze/releases) attaches a
+`glotze.flatpak` bundle. The `/releases/latest/download/` URL is stable, so
+you can fetch the most recent build without visiting the page:
+
+```sh
+# One-time: make sure the Flathub remote is configured — the bundle pulls its
+# GNOME runtime from there, and a single-file install won't resolve it on its own.
+flatpak remote-add --user --if-not-exists \
+  flathub https://flathub.org/repo/flathub.flatpakrepo
+
+# Download, install, run.
+curl -LO https://github.com/tombreit/Glotze/releases/latest/download/glotze.flatpak
+flatpak install --user ./glotze.flatpak
+flatpak run io.github.tombreit.Glotze
+```
+
+After install, "Glotze" also appears in your application grid. The first
+install pulls the GNOME 49 platform runtime (~1 GB) into
+`~/.local/share/flatpak/`; later versions reuse it. Remove with
+`flatpak uninstall --user io.github.tombreit.Glotze`.
+
+---
+
 ## Quick start (development)
 
 System packages (Debian/Ubuntu):

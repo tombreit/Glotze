@@ -251,7 +251,11 @@ Attach it to a GitHub release manually, or — better — let CI do it.
 flatpak remote-add --user --if-not-exists \
   flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# Install the test build, then run it.
+# Grab the latest bundle. The `/releases/latest/download/` URL always
+# resolves to the asset from the most recent published release.
+curl -LO https://github.com/tombreit/Glotze/releases/latest/download/glotze.flatpak
+
+# Install and run.
 flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
