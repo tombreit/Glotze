@@ -1,0 +1,49 @@
+name: Lint and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  format:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy-and-test:
+    name: clippy + test
+    runs-on: ubuntu-latest
+    # Fedora latest ships GTK 4 + libadwaita 1.8 (≥ our 1.7 minimum) in dnf,
+    # and rustup gives us current-stable Rust regardless of distro version.
+    # The gnome-SDK container that flatpak.yml uses doesn't have rustup on
+    # PATH, so we use a plain Fedora here.
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install system build deps
+        run: |
+          dnf install -y --setopt=install_weak_deps=False --best \
+            gtk4-devel libadwaita-devel pkgconf-pkg-config \
+            openssl-devel gcc git ca-certificates
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: cargo test
+        run: cargo test --all-targets --locked

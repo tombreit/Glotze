@@ -1,0 +1,20 @@
+/target
+
+# Vendored flatpak helper, re-downloaded by scripts/update-cargo-sources.sh.
+/scripts/flatpak-cargo-generator.py
+
+# Local flatpak-builder output: the workdir, its cache, the per-build OSTree
+# repo, and any single-file bundle produced by `flatpak build-bundle`.
+/build-dir
+/.flatpak-builder
+/repo
+*.flatpak
+
+# rustfmt backup files (when invoked with --backup).
+*.rs.bk
+
+# Editor / OS noise that has no place in the repo.
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db

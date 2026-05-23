@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Glotze
+GenericName=Mediathek Browser
+Comment=Search and download videos from German public broadcaster Mediatheken
+Exec=glotze
+Icon=io.github.tombreit.Glotze
+Type=Application
+Categories=AudioVideo;Video;GTK;
+StartupNotify=true
+StartupWMClass=io.github.tombreit.Glotze
+Keywords=ARD;ZDF;Mediathek;Tagesschau;Tatort;Video;

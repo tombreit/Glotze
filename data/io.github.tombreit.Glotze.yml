@@ -1,0 +1,60 @@
+app-id: io.github.tombreit.Glotze
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: glotze
+# Branch built into the OSTree repo. Flathub convention is `stable` for
+# releases; `flatpak build-bundle … stable` then matches.
+default-branch: stable
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Only ~/Videos is writable — Glotze can't see the rest of $HOME.
+  - --filesystem=xdg-videos
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/glotze/cargo
+    # Vendored sources are placed at $CARGO_HOME/vendor by cargo-sources.json,
+    # and the embedded config.toml redirects crates-io there. Refuse to reach
+    # the network — both as a safety net locally and a hard requirement on
+    # Flathub.
+    CARGO_NET_OFFLINE: "true"
+
+modules:
+  - name: glotze
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --offline --locked
+      - install -Dm755 target/release/glotze /app/bin/glotze
+      - install -Dm644 data/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+          /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - install -Dm644 data/${FLATPAK_ID}.desktop
+          /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 data/${FLATPAK_ID}.metainfo.xml
+          /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 COPYING
+          /app/share/licenses/${FLATPAK_ID}/COPYING
+      # Channel logos: dev looks under ./data/channels; in the sandbox the
+      # binary falls back to /app/share/glotze/channels (see ui/logo.rs).
+      - install -d /app/share/glotze/channels
+      - cp data/channels/*.svg /app/share/glotze/channels/
+    sources:
+      - type: dir
+        # Manifest lives in data/, so source root is one level up.
+        path: ..
+        skip:
+          - target
+          - .git
+          - build-dir
+          - .flatpak-builder
+          - repo
+      # cargo-sources.json lives at the repo root, one level up from this manifest.
+      - ../cargo-sources.json

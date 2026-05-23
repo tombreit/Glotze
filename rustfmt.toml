@@ -1,0 +1,11 @@
+# Stable rustfmt settings. Anything that needs nightly is intentionally
+# omitted so `cargo fmt` produces the same result on whatever toolchain a
+# contributor happens to have.
+
+edition                  = "2024"
+max_width                = 100
+hard_tabs                = false
+tab_spaces               = 4
+newline_style            = "Unix"
+use_field_init_shorthand = true
+use_try_shorthand        = true

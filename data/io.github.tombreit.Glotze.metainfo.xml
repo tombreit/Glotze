@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.tombreit.Glotze</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>EUPL-1.2</project_license>
+  <name>Glotze</name>
+  <summary>Search and download from German public broadcaster Mediatheken</summary>
+  <description>
+    <p>
+      Glotze is a GNOME-native desktop client for searching videos across ARD, ZDF, 3sat, arte and
+      the other German public broadcasters via the MediathekViewWeb API. Episodes can be downloaded
+      to the local Videos folder for offline viewing.
+    </p>
+    <p>
+      Playback and streaming are intentionally out of scope — Glotze hands you the file and steps
+      out of the way.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.tombreit.Glotze.desktop</launchable>
+  <developer id="io.github.tombreit">
+    <name>tombreit</name>
+  </developer>
+  <url type="homepage">https://github.com/tombreit/glotze</url>
+  <content_rating type="oars-1.1" />
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Network</category>
+  </categories>
+  <releases>
+    <release version="0.1.0" date="2026-05-22">
+      <description>
+        <p>Initial milestone: search MediathekViewWeb, pick quality, download to ~/Videos.</p>
+      </description>
+    </release>
+  </releases>
+</component>
