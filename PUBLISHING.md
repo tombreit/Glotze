@@ -349,6 +349,81 @@ Option C only if you want hosted updates without going through Flathub.
 
 ---
 
+## Cutting a release
+
+Glotze uses [`cargo-release`] to automate the version bump, lockfile sync,
+metainfo stamping, vendored-sources regeneration, commit, tag, and push as
+one atomic operation. Configured in `Cargo.toml` under
+`[package.metadata.release]`.
+
+[`cargo-release`]: https://github.com/crate-ci/cargo-release
+
+**One-time setup:**
+
+```sh
+cargo install cargo-release
+```
+
+**To cut a release:**
+
+```sh
+# Dry run first — prints every step without touching anything.
+cargo release patch
+
+# Real run — bumps, regenerates sources, commits, tags, pushes.
+cargo release patch -x
+```
+
+Use `minor` or `major` for non-patch bumps, or `cargo release 1.2.3 -x` for
+an explicit version. The flatpak workflow then builds the bundle on the new
+tag and attaches `glotze.flatpak` to a draft GitHub release — edit the
+auto-generated notes and publish.
+
+### What `cargo release` actually does
+
+The tool runs these in order; knowing the sequence helps when something goes
+wrong:
+
+1. Bumps `version` in `Cargo.toml`.
+2. Cargo's own metadata update syncs `Cargo.lock` (otherwise CI's `--locked`
+   clippy step in `.github/workflows/lint.yml` would fail).
+3. Runs `./scripts/update-cargo-sources.sh` (the `pre-release-hook`),
+   regenerating `cargo-sources.json` — without this the offline flatpak
+   build in `.github/workflows/flatpak.yml` would fail.
+4. Prepends a new `<release version="X.Y.Z" date="YYYY-MM-DD">` block to
+   `<releases>` in `data/io.github.tombreit.Glotze.metainfo.xml` (the
+   `pre-release-replacements` entry).
+5. Commits `Cargo.toml`, `Cargo.lock`, `cargo-sources.json`, and the
+   metainfo together.
+6. Tags `vX.Y.Z` (the `v` prefix is required by `flatpak.yml`'s
+   `tags: ['v*']` filter; the rest matches `Cargo.toml`).
+7. Pushes `main` and the tag.
+
+### Doing it by hand
+
+If `cargo-release` isn't installed, or you need to deviate from the
+templated flow, run the same steps in the same order:
+
+```sh
+# 1. Bump the version in Cargo.toml manually, then:
+cargo update -p glotze --offline
+./scripts/update-cargo-sources.sh
+# 2. Edit data/io.github.tombreit.Glotze.metainfo.xml: add a <release> entry.
+git add Cargo.toml Cargo.lock cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml
+git commit -m "Release X.Y.Z"
+git tag vX.Y.Z
+git push origin main vX.Y.Z
+```
+
+### Recovery
+
+If a tag goes out with a typo, delete the remote tag
+(`git push origin :refs/tags/vX.Y.Z`), fix the source, and re-tag. Do not
+move an existing tag to a different commit — downstream caches and the
+flatpak action's release-asset logic key on the tag name.
+
+---
+
 ## After acceptance: the maintenance loop
 
 Once the app is on Flathub, the workflow for shipping an update is:

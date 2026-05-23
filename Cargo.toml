@@ -29,3 +29,26 @@ needless_pass_by_value   = "allow"
 missing_errors_doc       = "allow"
 missing_panics_doc       = "allow"
 too_many_lines           = "allow"
+
+# Used by `cargo-release` (https://github.com/crate-ci/cargo-release).
+# `cargo install cargo-release`, then `cargo release patch -x` cuts a release.
+# Omit `-x` for a dry run. See PUBLISHING.md → "Cutting a release".
+[package.metadata.release]
+publish = false
+tag-name = "v{{version}}"
+tag-message = "Glotze {{version}}"
+pre-release-commit-message = "Release {{version}}"
+sign-tag = false
+sign-commit = false
+allow-branch = ["main"]
+push = true
+pre-release-hook = ["./scripts/update-cargo-sources.sh"]
+
+[[package.metadata.release.pre-release-replacements]]
+file = "data/io.github.tombreit.Glotze.metainfo.xml"
+search = "<releases>"
+replace = """<releases>
+    <release version=\"{{version}}\" date=\"{{date}}\">
+      <url>https://github.com/tombreit/Glotze/releases/tag/v{{version}}</url>
+    </release>"""
+exactly = 1
