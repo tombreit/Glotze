@@ -96,7 +96,7 @@ impl AppWindow {
                     toast_overlay.clone(),
                 );
                 wire_row_action(&results, &toast_overlay, &window, Rc::clone(&manager));
-                wire_progress_consumer(&downloads, &results, &manager, &toast_overlay);
+                wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
             }
             Err(e) => {
                 log::error!("HTTP client init failed: {e:#}");
@@ -122,17 +122,14 @@ fn build_header_bar(view_stack: &adw::ViewStack) -> adw::HeaderBar {
         .policy(adw::ViewSwitcherPolicy::Wide)
         .build();
 
-    let menu = gio::Menu::new();
-    menu.append(Some("_About Glotze"), Some("app.about"));
-    let menu_button = gtk::MenuButton::builder()
-        .icon_name("open-menu-symbolic")
-        .tooltip_text("Main Menu")
-        .menu_model(&menu)
-        .primary(true)
+    let about_button = gtk::Button::builder()
+        .icon_name("help-about-symbolic")
+        .tooltip_text("About Glotze")
+        .action_name("app.about")
         .build();
 
     let header = adw::HeaderBar::builder().title_widget(&switcher).build();
-    header.pack_end(&menu_button);
+    header.pack_end(&about_button);
     header
 }
 
@@ -172,24 +169,27 @@ fn install_window_actions(
 }
 
 fn wire_progress_consumer(
-    downloads: &Rc<DownloadsPage>,
+    downloads: Rc<DownloadsPage>,
     results: &Rc<ResultsPage>,
     manager: &Rc<Manager>,
     toast_overlay: &adw::ToastOverlay,
 ) {
     let rx = manager.progress_rx();
-    let downloads_weak: Weak<DownloadsPage> = Rc::downgrade(downloads);
+    // `downloads` is owned strongly by the future — nothing else holds a
+    // strong ref to the Rust wrapper (view_stack only keeps the GTK widget),
+    // and without it the page's rows HashMap would drop the moment
+    // `AppWindow::new` returns. The future ends naturally when the Manager
+    // drops on window close (rx returns Err), at which point `downloads`
+    // is released. results/manager keep their Weak refs so the consumer can
+    // detect window-closing without creating an ownership cycle through
+    // Manager (which would prevent rx from ever erroring).
     let results_weak: Weak<ResultsPage> = Rc::downgrade(results);
     let manager_weak: Weak<Manager> = Rc::downgrade(manager);
     let toast_weak = toast_overlay.downgrade();
 
     glib::MainContext::default().spawn_local(async move {
         while let Ok(p) = rx.recv().await {
-            // Upgrade everything once; if any owner is gone the window is
-            // closing — bail so we don't keep the future (and the channel)
-            // alive past the UI's useful life.
-            let (Some(downloads), Some(results), Some(manager), Some(toast)) = (
-                downloads_weak.upgrade(),
+            let (Some(results), Some(manager), Some(toast)) = (
                 results_weak.upgrade(),
                 manager_weak.upgrade(),
                 toast_weak.upgrade(),

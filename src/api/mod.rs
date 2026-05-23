@@ -67,7 +67,12 @@ impl Client {
         if let Some(err) = answer.err {
             return Err(anyhow!("mediathekviewweb error: {err:?}"));
         }
-        Ok(answer.result.map(|r| r.results).unwrap_or_default())
+        let mut results = answer.result.map(|r| r.results).unwrap_or_default();
+        // `sortBy` in the request is honored for the empty-query "recent" view
+        // but free-text queries fall back to relevance ranking, so enforce
+        // newest-first client-side. Shows without a timestamp sort last.
+        results.sort_by_key(|s| std::cmp::Reverse(s.timestamp.unwrap_or(i64::MIN)));
+        Ok(results)
     }
 }
 

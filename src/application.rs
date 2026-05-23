@@ -52,19 +52,39 @@ fn show_about(app: &adw::Application) {
         .application_icon(app.application_id().unwrap_or_default())
         .version(env!("CARGO_PKG_VERSION"))
         .developer_name("tombreit")
-        .website("https://github.com/tombreit/Glotze")
+        .website("https://thms.de")
         .issue_url("https://github.com/tombreit/Glotze/issues")
         .copyright("© 2026 tombreit")
         .license_type(gtk::License::Custom)
         .license(
-            "Licensed under the European Union Public Licence v1.2 (EUPL-1.2). \
-             See the COPYING file or <https://eupl.eu/> for the full text.",
+            "Licensed under the \
+             [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). \
+             See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the \
+             full text.",
         )
         .comments(
             "Search and download episodes from German public broadcaster \
              Mediatheken (ARD, ZDF, 3sat, arte, …) via the MediathekViewWeb API.",
         )
         .build();
+
+    dialog.add_link("Repository", "https://github.com/tombreit/Glotze");
+
+    dialog.add_acknowledgement_section(
+        Some("Stands on the shoulders of"),
+        &[
+            "MediathekViewWeb https://github.com/mediathekview/MediathekViewWeb",
+            "MediathekView https://github.com/mediathekview",
+            "Zapp https://github.com/mediathekview/zapp",
+            "gtk-rs https://gtk-rs.org/",
+            "Fractal https://gitlab.gnome.org/World/fractal",
+            "Loupe https://gitlab.gnome.org/GNOME/loupe",
+            "Bustle https://gitlab.gnome.org/World/bustle",
+            "Gitte https://codeberg.org/ckruse/Gitte",
+            "App icon: TestChart, CC0 https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
+        ],
+    );
+
     dialog.present(app.active_window().as_ref());
 }
 
