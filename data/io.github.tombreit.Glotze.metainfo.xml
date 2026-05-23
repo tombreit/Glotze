@@ -28,6 +28,9 @@
     <category>Network</category>
   </categories>
   <releases>
+    <release version="0.0.7" date="2026-05-23">
+      <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.7</url>
+    </release>
     <release version="0.1.0" date="2026-05-22">
       <description>
         <p>Initial milestone: search MediathekViewWeb, pick quality, download to ~/Videos.</p>

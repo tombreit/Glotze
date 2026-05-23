@@ -367,17 +367,26 @@ cargo install cargo-release
 **To cut a release:**
 
 ```sh
-# Dry run first — prints every step without touching anything.
+# Dry run first — prints every step but also runs the pre-release hook
+# (which regenerates cargo-sources.json) and previews file changes on disk.
+# If the diff looks wrong, `git restore .` cleans up.
 cargo release patch
 
 # Real run — bumps, regenerates sources, commits, tags, pushes.
-cargo release patch -x
+cargo release patch -x --no-confirm
 ```
 
-Use `minor` or `major` for non-patch bumps, or `cargo release 1.2.3 -x` for
-an explicit version. The flatpak workflow then builds the bundle on the new
-tag and attaches `glotze.flatpak` to a draft GitHub release — edit the
-auto-generated notes and publish.
+Use `minor` or `major` for non-patch bumps, or `cargo release 1.2.3 -x
+--no-confirm` for an explicit version. The flatpak workflow then builds the
+bundle on the new tag and attaches `glotze.flatpak` to a draft GitHub
+release — edit the auto-generated notes and publish.
+
+> **Why `--no-confirm`?** Without it, cargo-release modifies your files to
+> preview the release (version bump, metainfo entry, hook output) and then
+> prompts `Continue? [y/N]`. The prompt defaults to NO; if you press Enter,
+> you're left with a half-applied release on disk and no commit, tag, or
+> push. `--no-confirm` skips the prompt entirely. If you do end up in that
+> half-applied state, see "Recovery" below.
 
 ### What `cargo release` actually does
 
@@ -417,10 +426,25 @@ git push origin main vX.Y.Z
 
 ### Recovery
 
-If a tag goes out with a typo, delete the remote tag
-(`git push origin :refs/tags/vX.Y.Z`), fix the source, and re-tag. Do not
-move an existing tag to a different commit — downstream caches and the
-flatpak action's release-asset logic key on the tag name.
+**Half-applied release** (cargo-release modified files but didn't commit/tag
+— typically because `--no-confirm` was forgotten and the prompt got declined):
+
+```sh
+# Files are already modified correctly. Just finish the job manually:
+git add Cargo.toml Cargo.lock cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml
+git commit -m "Release X.Y.Z"      # match the version in Cargo.toml
+git tag vX.Y.Z
+git push origin main vX.Y.Z
+```
+
+Or, if you'd rather start fresh: `git restore Cargo.toml Cargo.lock
+cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml` and re-run
+`cargo release patch -x --no-confirm`.
+
+**Tag typo on the remote:** delete the remote tag (`git push origin
+:refs/tags/vX.Y.Z`), fix the source, and re-tag. Do not move an existing tag
+to a different commit — downstream caches and the flatpak action's
+release-asset logic key on the tag name.
 
 ---
 

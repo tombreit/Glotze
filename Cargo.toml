@@ -1,10 +1,11 @@
 [package]
 name = "glotze"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2024"
 rust-version = "1.92"
 description = "Search and download videos from German public broadcaster Mediatheken"
 license = "EUPL-1.2"
+publish = false  # binary-only app; not on crates.io
 
 [dependencies]
 gtk           = { package = "gtk4",       version = "0.11", features = ["v4_14"] }
@@ -31,10 +32,15 @@ missing_panics_doc       = "allow"
 too_many_lines           = "allow"
 
 # Used by `cargo-release` (https://github.com/crate-ci/cargo-release).
-# `cargo install cargo-release`, then `cargo release patch -x` cuts a release.
-# Omit `-x` for a dry run. See PUBLISHING.md → "Cutting a release".
+# `cargo install cargo-release`, then cut a release with:
+#   cargo release patch -x --no-confirm
+# `--no-confirm` is important: without it, cargo-release modifies the files
+# (version bump + metainfo replacement + hook) to preview the release, then
+# prompts "Continue? [y/N]". The prompt defaults to NO, and if you decline,
+# the files stay modified but the commit/tag/push never happens.
+# See PUBLISHING.md → "Cutting a release".
 [package.metadata.release]
-publish = false
+publish = false  # redundant with [package].publish but explicit is good
 tag-name = "v{{version}}"
 tag-message = "Glotze {{version}}"
 pre-release-commit-message = "Release {{version}}"
