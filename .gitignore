@@ -1,5 +1,9 @@
 /target
 
+# Local meson build directory (`meson setup build`); the flatpak path uses its
+# own build dir inside .flatpak-builder.
+/build/
+
 # Vendored flatpak helper, re-downloaded by scripts/update-cargo-sources.sh.
 /scripts/flatpak-cargo-generator.py
 

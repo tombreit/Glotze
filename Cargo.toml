@@ -58,3 +58,10 @@ replace = """<releases>
       <url>https://github.com/tombreit/Glotze/releases/tag/v{{version}}</url>
     </release>"""
 exactly = 1
+
+# Keep the meson project() version in lockstep with the Cargo version.
+[[package.metadata.release.pre-release-replacements]]
+file = "meson.build"
+search = "version: '[0-9]+\\.[0-9]+\\.[0-9]+'"
+replace = "version: '{{version}}'"
+exactly = 1

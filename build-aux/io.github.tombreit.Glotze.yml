@@ -30,28 +30,21 @@ build-options:
 
 modules:
   - name: glotze
-    buildsystem: simple
-    build-commands:
-      - cargo build --release --offline --locked
-      - install -Dm755 target/release/glotze /app/bin/glotze
-      - install -Dm644 data/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
-          /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
-      - install -Dm644 data/${FLATPAK_ID}.desktop
-          /app/share/applications/${FLATPAK_ID}.desktop
-      - install -Dm644 data/${FLATPAK_ID}.metainfo.xml
-          /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
-      - install -Dm644 COPYING
-          /app/share/licenses/${FLATPAK_ID}/COPYING
-      # Channel logos: dev looks under ./data/channels; in the sandbox the
-      # binary falls back to /app/share/glotze/channels (see ui/logo.rs).
-      - install -d /app/share/glotze/channels
-      - cp data/channels/*.svg /app/share/glotze/channels/
+    buildsystem: meson
+    # cargo is driven from meson's custom_target (see the top-level meson.build);
+    # meson installs the binary to /app/bin and every data file under /app/share
+    # — including the channel logos at /app/share/glotze/channels (see ui/logo.rs).
+    # Build the optimized profile explicitly: flatpak-builder otherwise passes
+    # --buildtype=plain, and we must not ship an unoptimized binary.
+    config-opts:
+      - --buildtype=release
     sources:
       - type: dir
-        # Manifest lives in data/, so source root is one level up.
+        # Manifest lives in build-aux/, so source root is one level up.
         path: ..
         skip:
           - target
+          - build
           - .git
           - build-dir
           - .flatpak-builder

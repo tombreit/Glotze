@@ -99,15 +99,21 @@ Build + install for the current user:
 
 ```sh
 flatpak-builder --user --install --force-clean build-dir \
-    data/io.github.tombreit.Glotze.yml
+    build-aux/io.github.tombreit.Glotze.yml
 flatpak run io.github.tombreit.Glotze
 ```
 
-The manifest builds fully offline using the vendored `cargo-sources.json` at
-the repo root. After any `Cargo.lock` change, refresh it with
+The outer build system is meson (`meson.build`), which drives `cargo` via
+`build-aux/cargo.sh` and installs the binary plus all data files. The Flatpak
+manifest builds fully offline using the vendored `cargo-sources.json` at the
+repo root. After any `Cargo.lock` change, refresh it with
 `./scripts/update-cargo-sources.sh` and commit both files together. See
 [`PUBLISHING.md`](PUBLISHING.md) for the Flathub-release workflow this
 unlocks.
+
+> A local `meson setup build && ninja -C build` builds *online* against your
+> crate cache — only the Flatpak path (`CARGO_NET_OFFLINE=true`) uses the
+> vendored sources. For day-to-day development just use `cargo run`.
 
 ---
 
@@ -116,6 +122,7 @@ unlocks.
 ```
 glotze/
 ├── Cargo.toml
+├── meson.build                          # outer build: drives cargo, installs files
 ├── COPYING                              # EUPL-1.2 license text
 ├── PUBLISHING.md                        # Flathub submission guide
 ├── cargo-sources.json                   # vendored crate manifest (offline builds)
@@ -124,6 +131,9 @@ glotze/
 ├── .github/workflows/
 │   ├── flatpak.yml                      # CI: build .flatpak bundle on tags
 │   └── lint.yml                         # CI: cargo fmt + clippy + test on push/PR
+├── build-aux/
+│   ├── io.github.tombreit.Glotze.yml    # flatpak manifest (buildsystem: meson)
+│   └── cargo.sh                          # meson → cargo wrapper (offline-aware)
 ├── scripts/
 │   └── update-cargo-sources.sh          # regenerate cargo-sources.json from Cargo.lock
 ├── src/
@@ -143,9 +153,9 @@ glotze/
 │       ├── logo.rs                      # per-channel SVG logo lookup
 │       └── format.rs                    # human dates (jiff, Europe/Berlin) and durations
 └── data/
+    ├── meson.build                      # installs the files below + validates metadata
     ├── io.github.tombreit.Glotze.desktop
     ├── io.github.tombreit.Glotze.metainfo.xml
-    ├── io.github.tombreit.Glotze.yml    # flatpak manifest
     ├── channels/                        # per-broadcaster SVG logos
     └── icons/hicolor/scalable/apps/io.github.tombreit.Glotze.svg
 ```

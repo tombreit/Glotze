@@ -15,23 +15,54 @@
       Playback and streaming are intentionally out of scope — Glotze hands you the file and steps
       out of the way.
     </p>
+    <p>Features:</p>
+    <ul>
+      <li>Search the combined MediathekViewWeb catalogue across every German public broadcaster</li>
+      <li>Choose a download quality — low, medium or high — per result</li>
+      <li>Download episodes to your Videos folder with a live progress indicator</li>
+      <li>Per-broadcaster channel logos for quick visual scanning of results</li>
+    </ul>
   </description>
   <launchable type="desktop-id">io.github.tombreit.Glotze.desktop</launchable>
   <developer id="io.github.tombreit">
     <name>tombreit</name>
   </developer>
-  <url type="homepage">https://github.com/tombreit/glotze</url>
+  <update_contact>tombreit_at_gmail.com</update_contact>
+  <url type="homepage">https://github.com/tombreit/Glotze</url>
+  <url type="bugtracker">https://github.com/tombreit/Glotze/issues</url>
+  <url type="vcs-browser">https://github.com/tombreit/Glotze</url>
   <content_rating type="oars-1.1" />
+  <branding>
+    <color type="primary" scheme_preference="light">#3584e4</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
   <categories>
     <category>AudioVideo</category>
     <category>Video</category>
     <category>Network</category>
   </categories>
+  <keywords>
+    <keyword>ARD</keyword>
+    <keyword>ZDF</keyword>
+    <keyword>Mediathek</keyword>
+    <keyword>arte</keyword>
+    <keyword>broadcast</keyword>
+  </keywords>
+  <!--
+    Screenshots live in data/screenshots/ (see the README there). Flathub mirrors
+    these URLs at build time; it does not host the images. Drop the PNGs into that
+    directory using the filenames below, push to main, then UNCOMMENT this block.
+    Exactly one screenshot must be type="default" (the Flathub hero image).
+  -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/tombreit/Glotze/main/data/screenshots/main-view.png</image>
+      <caption>Main Glotze view</caption>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="0.0.7" date="2026-05-23">
       <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.7</url>
-    </release>
-    <release version="0.1.0" date="2026-05-22">
       <description>
         <p>Initial milestone: search MediathekViewWeb, pick quality, download to ~/Videos.</p>
       </description>
