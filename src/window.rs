@@ -39,7 +39,11 @@ impl AppWindow {
             .maximum_size(820)
             .tightening_threshold(620)
             .margin_top(12)
-            .margin_bottom(0)
+            // Permanent gap below the search bar. Unlike the results list's own
+            // top margin (which scrolls away with the content), this margin is
+            // outside the ScrolledWindow, so rows never butt against the search
+            // bar once the list is scrolled.
+            .margin_bottom(12)
             .margin_start(12)
             .margin_end(12)
             .child(&search_entry)

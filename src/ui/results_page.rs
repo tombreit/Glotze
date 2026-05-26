@@ -37,7 +37,10 @@ impl ResultsPage {
         let clamp = adw::Clamp::builder()
             .maximum_size(820)
             .tightening_threshold(620)
-            .margin_top(18)
+            // The search bar above contributes a 12px bottom margin, so 6 here
+            // keeps the at-rest gap at the usual 18px while leaving a 12px gap
+            // once the list is scrolled under the (fixed) search bar.
+            .margin_top(6)
             .margin_bottom(18)
             .margin_start(12)
             .margin_end(12)
