@@ -29,11 +29,6 @@ flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
 
-After install, "Glotze" also appears in your application grid. The first
-install pulls the GNOME 49 platform runtime (~1 GB) into
-`~/.local/share/flatpak/`; later versions reuse it. Remove with
-`flatpak uninstall --user io.github.tombreit.Glotze`.
-
 ---
 
 ## Quick start (development)
@@ -105,14 +100,14 @@ One-time SDK install for local Flatpak builds and the Flathub linter:
 ```sh
 sudo apt install flatpak-builder
 flatpak install flathub \
-    org.gnome.Sdk//49 \
-    org.gnome.Platform//49 \
+    org.gnome.Sdk//50 \
+    org.gnome.Platform//50 \
     org.freedesktop.Sdk.Extension.rust-stable \
     org.flatpak.Builder
 ```
 
-The runtime/SDK branch (`49`) tracks the manifest; bump both together for GNOME
-50 later. `org.flatpak.Builder` provides `flatpak-builder-lint`.
+The runtime/SDK branch (`50`) tracks the manifest; bump both together when a
+newer GNOME runtime lands. `org.flatpak.Builder` provides `flatpak-builder-lint`.
 
 ---
 
