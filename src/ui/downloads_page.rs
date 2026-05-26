@@ -175,15 +175,11 @@ impl DownloadsPage {
                 // so no extra filesystem permission is required.
                 let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(&file_path)));
                 let window = btn.root().and_downcast::<gtk::Window>();
-                launcher.open_containing_folder(
-                    window.as_ref(),
-                    gio::Cancellable::NONE,
-                    |res| {
-                        if let Err(e) = res {
-                            log::warn!("could not reveal download in file manager: {e}");
-                        }
-                    },
-                );
+                launcher.open_containing_folder(window.as_ref(), gio::Cancellable::NONE, |res| {
+                    if let Err(e) = res {
+                        log::warn!("could not reveal download in file manager: {e}");
+                    }
+                });
             }
         });
         row.add_suffix(&open_btn);
