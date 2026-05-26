@@ -99,17 +99,13 @@ logic keys on the tag name).
 
 ## Submitting to Flathub (first time)
 
-1. **Finish the metainfo** (`data/io.github.tombreit.Glotze.metainfo.xml`): at
-   least one `<screenshot>` with a real HTTPS URL that resolves (see
-   `data/screenshots/README.md`), plus `<update_contact>`, the `bugtracker` and
-   `vcs-browser` URLs, and a `<release>` matching `Cargo.toml`. Validate (above).
-2. **Open the PR** against <https://github.com/flathub/flathub> on the `new-pr`
+1. **Open the PR** against <https://github.com/flathub/flathub> on the `new-pr`
    branch, in a branch named after the app ID, adding at the repo root:
    - the manifest — **with the `dir` source swapped for a `git` source pinned to
      the release tag** (see *Maintenance loop*); Flathub has no working tree.
    - `cargo-sources.json`
    - optionally a `flathub.json` (Flathub builds x86_64 + aarch64 by default).
-3. The Flathub bot builds and lints your manifest; a human reviewer checks the
+1. The Flathub bot builds and lints your manifest; a human reviewer checks the
    `finish-args` and metainfo. On merge, `flathub/io.github.tombreit.Glotze` is
    created and you get write access — from then on it's the maintenance loop.
 
