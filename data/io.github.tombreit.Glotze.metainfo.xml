@@ -61,6 +61,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.0.7" date="2026-05-236">
+      <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.8</url>
+      <description>
+        <p>Polished app, build system and distribution.</p>
+      </description>
+    </release>
     <release version="0.0.7" date="2026-05-23">
       <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.7</url>
       <description>
