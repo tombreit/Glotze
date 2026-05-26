@@ -15,8 +15,10 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
-  # Only ~/Videos is writable — Glotze can't see the rest of $HOME.
-  - --filesystem=xdg-videos
+  # Only ~/Videos/Glotze is writable — Glotze can't see the rest of ~/Videos
+  # or $HOME. `:create` makes the folder (and ~/Videos itself) when the user
+  # has no Videos directory configured, so download.rs can always write here.
+  - --filesystem=xdg-videos/Glotze:create
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
