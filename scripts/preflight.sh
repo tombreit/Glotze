@@ -75,8 +75,14 @@ cargo test --all-targets --locked
 step "flatpak-builder-lint manifest"
 fbl manifest "$MANIFEST"
 
-step "flatpak-builder-lint appstream"
-fbl appstream "$METAINFO"
+# Advisory only: `flatpak-builder-lint appstream` does *live* URL + screenshot
+# reachability probes, so it false-fails on flaky network/SSL (and CI never runs
+# it — flatpak.yml gates on `manifest` + `repo`). Run it for the signal but never
+# let it abort a release; the offline appstreamcli check below is the hard gate.
+step "flatpak-builder-lint appstream (advisory — live URL/screenshot checks; CI does not run this)"
+if ! fbl appstream "$METAINFO"; then
+    printf '\033[33mpreflight: advisory appstream check reported issues above. These are network/SSL-dependent (URL + screenshot reachability) and do NOT block the release — re-run before a Flathub submission when connectivity is reliable.\033[0m\n' >&2
+fi
 
 # The upstream validators that data/meson.build wires as `meson test` targets and
 # that flatpak.yml runs in-sandbox via `run-tests: true`. Running them directly is
