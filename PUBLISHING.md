@@ -1,509 +1,160 @@
-# Publishing Glotze on Flathub
+# Publishing & releasing Glotze
 
-A walkthrough for going from "Cargo project that builds locally" to "discoverable
-app on flathub.org". Written for first-time Flathub publishers — assumes no prior
-GNOME-distribution knowledge.
+Glotze ships on Flathub. The app ID `io.github.tombreit.Glotze` is load-bearing —
+it ties together the binary, the `.desktop` file, the AppStream metainfo, the
+icon, and the Flatpak sandbox. Don't change it.
 
-The repo is at <https://github.com/tombreit/Glotze>. The app ID is
-`io.github.tombreit.Glotze` — that string is load-bearing: it's the binary's
-identity to Flatpak, GNOME, AppStream, and Flathub. Don't change it.
+Most GNOME apps have GNOME Nightly CI and a separate `flathub/<app-id>` packaging
+repo. Glotze has no nightly pipeline, so **this repo doubles as the Flathub-prep
+repo**: the manifest, the vendored sources, and the validators all live here.
+Flathub's own docs: <https://docs.flathub.org/docs/for-app-authors/submission>.
 
----
-
-## How Flathub publishing works (short version)
-
-1. You write a **flatpak-builder manifest** (already done — `build-aux/io.github.tombreit.Glotze.yml`).
-2. You make sure your app ships valid **AppStream metainfo** + a valid `.desktop` file + an icon, all named after the app ID.
-3. You vendor all Cargo dependencies into a `cargo-sources.json` so the build can run with **no network access** (Flathub forbids `--share=network` at build time).
-4. You open a pull request against <https://github.com/flathub/flathub> on the `new-pr` branch with your manifest + supporting files.
-5. A Flathub reviewer runs the manifest through `flatpak-builder` + linters, comments on what's wrong, you fix, eventually they merge.
-6. After merge, a dedicated repo at `github.com/flathub/io.github.tombreit.Glotze` is created and your manifest moves there. From then on, **every push to that repo's `master` branch publishes a new version** — that's the maintenance loop.
-
-Expect the first PR review to take days-to-weeks. Reviewers are volunteers.
+The day-to-day command cheat-sheet (run, build, validate, deps) is in the
+README's *Maintainer commands*. This file covers the parts unique to
+distribution: **how it builds → validate → release → submit → maintain**.
 
 ---
 
-## Reference apps to read alongside this guide
+## How it builds
 
-Pick one and keep its tree open while you work. Each does slightly more than Glotze and shows the canonical layout.
+meson (`meson.build`) is the outer build system; it drives cargo through
+`build-aux/cargo.sh` and installs the binary plus the data files. The Flatpak
+build runs **offline** — Flathub forbids network access at build time — using the
+vendored `cargo-sources.json` (generated from `Cargo.lock` by
+`scripts/update-cargo-sources.sh`, pinned to a known generator commit). The
+manifest (`build-aux/io.github.tombreit.Glotze.yml`) is `buildsystem: meson` and
+adds `cargo-sources.json` as a second source. The version comes from `Cargo.toml`
+(meson reads it at configure time; the binary uses `CARGO_PKG_VERSION`).
 
-| App | Repo | What to study |
-|---|---|---|
-| **Bustle** | <https://gitlab.gnome.org/World/bustle> | Smallest of the four — closest match for Glotze's scope. Look at `build-aux/`, `meson.build`, `data/`. |
-| **Loupe** | <https://gitlab.gnome.org/GNOME/loupe> | Image viewer, similar feature surface to Glotze. Excellent meson + metainfo. |
-| **Gitte** | <https://codeberg.org/ckruse/Gitte> | The reference you found. Has the cleanest `scripts/update-cargo-sources.sh` and a complete `metainfo.xml.in` with screenshots. |
-| **Fractal** | <https://gitlab.gnome.org/World/fractal> | Big and complex; useful for advanced patterns (gettext, release-vs-devel manifests). |
+Refresh the vendored sources only when dependencies change:
 
-The Flathub itself docs are at <https://docs.flathub.org/docs/for-app-authors/submission> — read once end-to-end before you start.
+```sh
+./scripts/update-cargo-sources.sh   # regenerates cargo-sources.json from Cargo.lock
+```
 
 ---
 
-## Pre-flight checklist
+## Validate
 
-Before you touch anything, decide on these — they're hard to change later:
-
-- **App ID**: `io.github.tombreit.Glotze`. Already set. Keep it.
-- **License**: EUPL-1.2. Declared in `Cargo.toml`, `metainfo.xml`, and the `COPYING` file at the repo root.
-- **Homepage / issues URL**: <https://github.com/tombreit/Glotze> / `/issues`. Already used.
-- **Where will screenshots be hosted?** Flathub does not host them for you. The metainfo file points at HTTPS URLs that Flathub mirrors at build time. Options that work well:
-  - GitHub release asset URLs (stable, you control them, embedded in the tag)
-  - A `gh-pages` branch in this same repo
-  - Any HTTPS host you trust to stay up
-- **Versioning**: `Cargo.toml`'s `version` is the **single source of truth**. `meson.build` reads it at configure time, the About dialog uses `CARGO_PKG_VERSION`, and the release tag is `v` + that version — so nothing can drift. Flathub expects each `<release version="…" date="…">` in the metainfo to match the binary it builds; the steps below keep them aligned.
-
----
-
-## Action plan (in order)
-
-### Step 1 — Vendor the Cargo dependencies ✅ done
-
-Flathub builds run without network. Every crate Glotze depends on is shipped as a `cargo-sources.json` file alongside the manifest. This is already in place:
-
-- `cargo-sources.json` at the repo root, generated by `flatpak-cargo-generator.py` from `Cargo.lock` (~140 KB, 250-odd crates).
-- `scripts/update-cargo-sources.sh` regenerates it. Run after any `cargo update` / `Cargo.toml` change, then commit both files together.
-- The manifest (`build-aux/io.github.tombreit.Glotze.yml`) is `buildsystem: meson`; meson drives cargo through `build-aux/cargo.sh`, which sets `CARGO_NET_OFFLINE=true` and runs `cargo build --release --offline --locked` against the vendored sources. The manifest pulls in `../cargo-sources.json` as a second source.
-- The vendor config (`cargo/config.toml` pointing at `cargo/vendor/`) is the last `inline` entry of `cargo-sources.json`, so no `.cargo/config.toml` is committed at the repo root — local `cargo build` still uses the regular crates.io cache.
-- The generator is pinned to a specific `flatpak-builder-tools` commit (`GENERATOR_REF` in the script) so regenerating is reproducible; the downloaded helper is cached under a SHA-suffixed filename and gitignored.
-
-> **Why is `cargo-sources.json` committed here when GNOME World apps (Shortwave,
-> Fractal, Loupe…) don't have it in their source trees?** Because Flathub builds
-> are offline, every Rust app needs this vendoring manifest *somewhere* — those
-> apps keep it in their separate `flathub/<app-id>` packaging repo (Fractal's even
-> has a same-named `update-cargo-sources.sh`), since their GNOME *nightly* CI
-> builds cargo online and doesn't need it. Glotze has no GNOME Nightly and its
-> `flatpak.yml` CI builds an offline bundle that mirrors Flathub, so this repo
-> doubles as the Flathub-prep repo and tracks the file directly. It is required,
-> not accidental.
-
-**Re-running the generator:**
+Run these before tagging or submitting — CI (`.github/workflows/flatpak.yml`)
+runs all of them too.
 
 ```sh
-./scripts/update-cargo-sources.sh
-git add Cargo.lock cargo-sources.json
-git commit -m "deps: refresh cargo-sources.json"
+# Metadata — also wired as `meson test` targets and run during the Flatpak build:
+meson setup build
+meson test -C build                 # appstreamcli validate + desktop-file-validate
+
+# Flathub's own linter (org.flatpak.Builder provides it; CI uses the bundled binary):
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
+    manifest build-aux/io.github.tombreit.Glotze.yml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
+    appstream data/io.github.tombreit.Glotze.metainfo.xml
 ```
 
-The first run creates a venv at `/tmp/cargo-gen-venv` for the generator's Python dependencies (`aiohttp`, `tomlkit`, `PyYAML`); subsequent runs reuse it.
-
-**Verify locally** with:
-
-```sh
-flatpak-builder --user --install --force-clean build-dir \
-  build-aux/io.github.tombreit.Glotze.yml
-```
-
-If the build completes without ever touching the network during the cargo step, this is good for Flathub.
-
-### Step 2 — Take screenshots and add them to the metainfo
-
-At minimum **one** screenshot. Three to five is the sweet spot. Show: empty search, results list, a row expanded, a download in progress.
-
-Constraints (Flathub guidelines):
-
-- **PNG**, lossless. JPEG is allowed but visibly worse.
-- **At least 1280×720**, ideally 1600×900 or 1920×1080. Crop to a clean window — no extra desktop / panels.
-- **16:9 aspect** preferred (Flathub's hero card is widescreen).
-- **Light theme**. The website shows the same shot to all users.
-
-Capture them with Loupe / GNOME Screenshot, host them somewhere stable, then add to `data/io.github.tombreit.Glotze.metainfo.xml`:
-
-```xml
-<screenshots>
-  <screenshot type="default">
-    <image>https://…/glotze-search.png</image>
-    <caption>Search results from MediathekViewWeb</caption>
-  </screenshot>
-  <screenshot>
-    <image>https://…/glotze-download.png</image>
-    <caption>A download in progress</caption>
-  </screenshot>
-</screenshots>
-```
-
-Exactly **one** screenshot must have `type="default"` — that's the one Flathub uses as the hero image.
-
-### Step 3 — Round out the AppStream metainfo
-
-Add what's currently missing to `data/io.github.tombreit.Glotze.metainfo.xml`:
-
-```xml
-<url type="bugtracker">https://github.com/tombreit/Glotze/issues</url>
-<url type="vcs-browser">https://github.com/tombreit/Glotze</url>
-<update_contact>your-email_at_domain.tld</update_contact>
-
-<branding>
-  <color type="primary" scheme_preference="light">#3584e4</color>
-  <color type="primary" scheme_preference="dark">#1a5fb4</color>
-</branding>
-
-<keywords>
-  <keyword>ARD</keyword>
-  <keyword>ZDF</keyword>
-  <keyword>Mediathek</keyword>
-  <keyword>arte</keyword>
-  <keyword>broadcast</keyword>
-</keywords>
-```
-
-Expand the `<description>` into 2–3 short paragraphs plus a `<ul>` of features. The Flathub card renders this verbatim, so use it.
-
-`<update_contact>` is required for Flathub — it's how reviewers reach you. Encode the `@` as `_at_` per the spec.
-
-### Step 4 — Validate everything locally
-
-These three commands need to exit 0 with no warnings:
-
-```sh
-# AppStream
-appstreamcli validate --no-net --explain data/io.github.tombreit.Glotze.metainfo.xml
-
-# Desktop file
-desktop-file-validate data/io.github.tombreit.Glotze.desktop
-
-# Flatpak manifest (basic shape)
-flatpak-builder --show-manifest build-aux/io.github.tombreit.Glotze.yml > /dev/null
-```
-
-If `appstreamcli` isn't installed: `sudo apt install appstream` (Debian/Ubuntu). The same checks are run by Flathub on submission — fixing them now saves a review round-trip.
-
-### Step 5 — Test the sandboxed build end-to-end
-
-```sh
-# Clean build with vendored sources, installed for your user.
-flatpak-builder --user --install --force-clean build-dir \
-  build-aux/io.github.tombreit.Glotze.yml
-
-# Run it under flatpak (this is exactly how Flathub users will run it).
-flatpak run io.github.tombreit.Glotze
-```
-
-Confirm:
-
-- The app launches and searches work.
-- A download lands in `~/Videos/Glotze/` (the sandbox only has `--filesystem=xdg-videos`; nothing else is writable).
-- Quit and re-launch — state should be clean, no crash logs in `journalctl --user`.
-
-If you've never run flatpak-builder before: it installs build deps into `~/.local/share/flatpak/` and is fully reversible with `flatpak uninstall io.github.tombreit.Glotze`.
-
-### Step 6 — meson as the outer build ✅ done
-
-Every reference app on Flathub uses meson, not raw cargo, as the outer build
-system, so Glotze does too. The pieces:
-
-- `meson.build` (top level) drives cargo via a `custom_target` calling
-  `build-aux/cargo.sh`, then installs the binary to `/app/bin`.
-- `data/meson.build` installs the desktop file, metainfo, icon, license, and
-  channel logos, and registers `appstreamcli validate` + `desktop-file-validate`
-  as `meson test` targets (run them with `meson test -C build`).
-- `gnome.post_install()` updates the GTK icon cache and desktop database so the
-  icon appears in the app grid immediately.
-- A clear path to add gettext translations later (a `po/` subdir + `i18n`
-  import), should the UI ever need localizing.
-
-The Flatpak manifest is `buildsystem: meson` with `--buildtype=release`. Offline
-vendoring (`cargo-sources.json`) is unchanged — meson does not replace it.
-
-### Step 7 — Open the Flathub PR
-
-When everything above passes locally:
-
-1. Fork <https://github.com/flathub/flathub> on GitHub.
-2. Check out the `new-pr` branch (not `master`).
-3. Create a new branch from `new-pr` named after the app ID: `io.github.tombreit.Glotze`.
-4. Add the following files at the repo root of your branch:
-   - `io.github.tombreit.Glotze.yml` (the manifest, copied from your `build-aux/`) — **swap the `dir` source for a `git` source pinned to your release tag**, as shown under "the maintenance loop"; Flathub has no working tree to build from.
-   - `cargo-sources.json`
-   - A `flathub.json` with your build-options if any (usually empty for a single-arch app — Flathub builds for x86_64 and aarch64 by default; opt out of one with `"only-arches": ["x86_64"]` if needed)
-5. Open the PR against `flathub:new-pr`. Title format: `Add io.github.tombreit.Glotze`.
-6. The Flathub bot will trigger a build. Watch the CI output. Fix what fails, push, repeat.
-7. A human reviewer will eventually look. They'll comment on permissions (`finish-args`), on metainfo details, on whether the app actually does what it claims. Be responsive.
-8. On merge: Flathub creates `github.com/flathub/io.github.tombreit.Glotze` and grants you write access. Your manifest and `cargo-sources.json` live there from then on.
-
----
-
-## Distributing test builds before Flathub
-
-Useful during the pre-release / testflight phase: anyone with a URL can install
-the build without waiting for a Flathub review round. Three options, from least
-to most work.
-
-### Option A — Tester builds from the repo
-
-Already what step 5 describes. Friction: the tester needs `flatpak-builder`,
-the GNOME SDK runtime (~1 GB the first time), and 5–10 minutes per build.
-Fine for the handful of people willing to clone the repo.
-
-```sh
-git clone https://github.com/tombreit/Glotze && cd Glotze
-flatpak-builder --user --install --force-clean build-dir \
-  build-aux/io.github.tombreit.Glotze.yml
-flatpak run io.github.tombreit.Glotze
-```
-
-### Option B — Ship a `.flatpak` bundle as a GitHub release asset (recommended)
-
-The canonical pre-Flathub testflight format. A `.flatpak` file is a single
-self-contained bundle. Testers download it and install with one command.
-Updates require downloading a new file (no automatic upgrade) — fine for a
-small tester group.
-
-**Build the bundle locally:**
-
-```sh
-# Build into a private OSTree repo at ./repo instead of installing system-wide.
-flatpak-builder --user --force-clean --repo=repo build-dir \
-  build-aux/io.github.tombreit.Glotze.yml
-
-# Pack the repo's app branch into a single-file bundle.
-flatpak build-bundle repo glotze.flatpak io.github.tombreit.Glotze stable
-```
-
-That produces `glotze.flatpak` (typically 10–30 MB for an app of this size).
-Attach it to a GitHub release manually, or — better — let CI do it.
-
-**Tester instructions** (paste these into the GitHub release notes):
-
-```sh
-# Flathub runtime, only needed once on the tester's machine.
-flatpak remote-add --user --if-not-exists \
-  flathub https://flathub.org/repo/flathub.flatpakrepo
-
-# Grab the latest bundle. The `/releases/latest/download/` URL always
-# resolves to the asset from the most recent published release.
-curl -LO https://github.com/tombreit/Glotze/releases/latest/download/glotze.flatpak
-
-# Install and run.
-flatpak install --user ./glotze.flatpak
-flatpak run io.github.tombreit.Glotze
-```
-
-To remove it cleanly later: `flatpak uninstall --user io.github.tombreit.Glotze`.
-
-**This is already wired up.** The workflow at
-[`.github/workflows/flatpak.yml`](.github/workflows/flatpak.yml) uses the
-official `flatpak/flatpak-github-actions/flatpak-builder@v6` action inside a
-`gnome-49` SDK container. It fires on any pushed tag matching `v*` (and can be
-triggered manually from the Actions tab).
-
-**To cut a testflight release:**
-
-```sh
-# Bump the version in Cargo.toml and add a <release> entry to the metainfo,
-# then commit.
-git tag v0.1.0-rc1
-git push origin v0.1.0-rc1
-```
-
-That's it. About 5–10 minutes later a published GitHub release at
-`v0.1.0-rc1` exists with:
-
-- `glotze.flatpak` attached as a release asset
-- Auto-generated release notes built from the commit log since the previous tag
-
-The release goes live immediately; edit the notes afterward if you like (or mark
-it as a pre-release on the release page for an `-rc` tag). Testers download
-`glotze.flatpak` from the release page and run the `flatpak install` command
-shown above.
-
-**Caveats:**
-
-- The build is fully offline (vendored Cargo sources, `CARGO_NET_OFFLINE=true`).
-  Don't re-add `--share=network` to the manifest — Flathub will refuse it.
-- If a tag fails to build, the most likely cause is a stale
-  `cargo-sources.json` after a `Cargo.lock` change. Re-run
-  `./scripts/update-cargo-sources.sh` and re-tag.
-- The cache key is keyed on `Cargo.lock` + the manifest, so cached layers
-  invalidate only when dependencies actually change. Expect the first build to
-  take ~15 min while it populates the cache; subsequent tags run in 3–5 min.
-- The job needs `permissions: contents: write` to upload release assets — the
-  workflow already declares it. No PAT or secret is required; the default
-  `GITHUB_TOKEN` is enough.
-
-### Option C — Host your own Flatpak repo on GitHub Pages
-
-The "proper" way to distribute outside Flathub. Testers add the repo once with
-`flatpak remote-add`; subsequent `flatpak update` calls pick up new builds
-automatically — same UX as a real Flathub install. Use this if you want a
-permanent `nightly` or `beta` channel alongside whatever ships on Flathub.
-
-Sketch:
-
-1. In CI, build with `--repo=repo` (same as option B).
-2. Push the contents of `repo/` to a `gh-pages` branch — the
-   `flatpak/flatpak-github-actions` action has a `repository-name`/`gpg-sign`
-   knob; pair it with `peaceiris/actions-gh-pages` for the deploy.
-3. Commit a `glotze.flatpakrepo` file at the repo root:
-
-   ```ini
-   [Flatpak Repo]
-   Title=Glotze (testing)
-   Url=https://tombreit.github.io/Glotze/
-   Homepage=https://github.com/tombreit/Glotze
-   Description=Pre-release Glotze builds
-   ```
-
-4. Tester install — one-time:
-
-   ```sh
-   flatpak remote-add --user --if-not-exists glotze-testing \
-     https://tombreit.github.io/Glotze/glotze.flatpakrepo
-   flatpak install --user glotze-testing io.github.tombreit.Glotze
-   ```
-
-   `flatpak update --user` then pulls new builds whenever you push to
-   `gh-pages`.
-
-Trade-offs vs option B: the OSTree repo grows over time (every published
-version stays around), and you should sign builds with a GPG key for testers
-to trust them — both add operational overhead. For small-circle testflights,
-stick with option B.
-
-### Recommendation
-
-Start with **Option B + the GitHub Actions workflow** above. It's the lowest
-friction for testers, fits naturally into a tag-driven release workflow, and
-the same `cargo-sources.json` you need for Flathub already unlocks it. Move to
-Option C only if you want hosted updates without going through Flathub.
+`appstreamcli` and the linter treat warnings as fatal for Flathub — fixing them
+here saves a review round-trip. After an offline build into a local repo
+(`flatpak-builder --user --force-clean --repo=repo build-dir <manifest>`) you can
+also lint the result with `flatpak-builder-lint repo repo`.
 
 ---
 
 ## Cutting a release
 
-`Cargo.toml`'s `version` is the source of truth and the git tag is `v` + that
-version. A release is six explicit steps. Most releases don't change
-dependencies, so they don't even touch `cargo-sources.json` or rerun the
-generator.
+`Cargo.toml`'s `version` is the source of truth; the git tag is `v` + that
+version. Most releases don't change dependencies, so they don't touch
+`cargo-sources.json`.
 
 ```sh
-# 1. Bump the version — this one edit drives everything else:
+# 1. Bump the version — this one edit drives everything (meson + the binary follow):
 #      Cargo.toml  ->  version = "X.Y.Z"
-#    meson.build reads it at configure time; the binary picks it up via
-#    CARGO_PKG_VERSION. No other file holds the version number.
-
-cargo update -p glotze --offline          # 2. sync Cargo.lock to the new version
-
-# 3. ONLY if you changed dependencies this release, refresh the vendored sources:
-#      ./scripts/update-cargo-sources.sh
-
-# 4. Add a release entry at the TOP of <releases> in
-#    data/io.github.tombreit.Glotze.metainfo.xml:
-#
+cargo update -p glotze --offline          # 2. sync Cargo.lock
+# 3. ONLY if dependencies changed:  ./scripts/update-cargo-sources.sh
+# 4. Prepend a <release> to data/io.github.tombreit.Glotze.metainfo.xml:
 #      <release version="X.Y.Z" date="YYYY-MM-DD">
 #        <url>https://github.com/tombreit/Glotze/releases/tag/vX.Y.Z</url>
 #      </release>
-
-git commit -am "Release X.Y.Z"            # 5. commit (cargo-sources.json too, if step 3 ran)
+git commit -am "Release X.Y.Z"            # 5. (cargo-sources.json too, if step 3 ran)
 git tag vX.Y.Z                            #    the tag MUST equal v + the Cargo.toml version
 git push origin main vX.Y.Z               # 6. push
 ```
 
-Step 6 triggers `.github/workflows/flatpak.yml`: it builds the bundle on the tag
-and **publishes** a GitHub release with `glotze.flatpak` attached and notes
-auto-generated from the commit log. That is the whole loop.
+Pushing the tag triggers `flatpak.yml`: it lints the manifest, builds the bundle
+offline, runs the metadata tests, then **publishes** a GitHub release with
+`glotze.flatpak` attached and notes auto-generated from the commit log. Testers
+install that asset using the commands in the README's *Install* section. (Tag an
+`-rc` like `v0.1.0-rc1` for a pre-release testflight; `flatpak.yml` fires on any
+`v*` tag.)
 
-> The metainfo release entry can stay minimal (version + date + url). Add a
-> short `<description>` only when a release is worth a changelog line — Flathub
-> renders it on the listing.
+The metainfo entry can stay minimal (version + date + url); add a `<description>`
+only when a release is worth a changelog line — Flathub renders it on the listing.
 
-### Shortcut: `cargo release`
-
-[`cargo-release`] collapses steps 1–6 into one command. Optional — the manual
-steps above are the canonical path; this just automates them (config lives in
-`Cargo.toml` under `[package.metadata.release]`).
-
-[`cargo-release`]: https://github.com/crate-ci/cargo-release
-
-```sh
-cargo install cargo-release                # one-time
-
-cargo release patch                        # dry run: previews everything (`git restore .` to undo)
-cargo release patch -x --no-confirm        # real run: bump, sync, stamp metainfo, commit, tag, push
-```
-
-Use `minor` / `major` or an explicit `cargo release X.Y.Z` as needed. It runs
-the `pre-release-hook` (`update-cargo-sources.sh`) every time — a no-op when
-dependencies are unchanged. `-x` executes; `--no-confirm` skips the confirmation
-prompt that, if declined, would leave a half-applied release on disk.
-
-> **If a run leaves files modified but uncommitted** (declined prompt): the edits
-> are already correct — just `git commit -am "Release X.Y.Z" && git tag vX.Y.Z &&
-> git push origin main vX.Y.Z`, or `git restore .` and retry.
-> **Never move an existing remote tag** — the flatpak action keys release assets
-> on the tag name. Delete it (`git push origin :refs/tags/vX.Y.Z`) and re-tag instead.
+**Shortcut:** `cargo release patch -x --no-confirm` does steps 1–6 in one command
+(config in `Cargo.toml` under `[package.metadata.release]`; `cargo install
+cargo-release` first). Run `cargo release patch` alone for a dry run. If a run
+leaves files modified but uncommitted, just `git commit`/`tag`/`push` them — and
+never move an existing remote tag (delete and re-tag instead; the release-asset
+logic keys on the tag name).
 
 ---
 
-## After acceptance: the maintenance loop
+## Submitting to Flathub (first time)
 
-Once the app is on Flathub, shipping an update is just **cut a release as above**,
-then propagate the tag to the Flathub packaging repo:
+1. **Finish the metainfo** (`data/io.github.tombreit.Glotze.metainfo.xml`): at
+   least one `<screenshot>` with a real HTTPS URL that resolves (see
+   `data/screenshots/README.md`), plus `<update_contact>`, the `bugtracker` and
+   `vcs-browser` URLs, and a `<release>` matching `Cargo.toml`. Validate (above).
+2. **Open the PR** against <https://github.com/flathub/flathub> on the `new-pr`
+   branch, in a branch named after the app ID, adding at the repo root:
+   - the manifest — **with the `dir` source swapped for a `git` source pinned to
+     the release tag** (see *Maintenance loop*); Flathub has no working tree.
+   - `cargo-sources.json`
+   - optionally a `flathub.json` (Flathub builds x86_64 + aarch64 by default).
+3. The Flathub bot builds and lints your manifest; a human reviewer checks the
+   `finish-args` and metainfo. On merge, `flathub/io.github.tombreit.Glotze` is
+   created and you get write access — from then on it's the maintenance loop.
 
-1. Cut the release in **this repo** ("Cutting a release"). That tags `vX.Y.Z` and
-   publishes the GitHub release.
-2. In **the Flathub repo** (`flathub/io.github.tombreit.Glotze`): point the
-   manifest's source at the new **tag**, drop in the matching `cargo-sources.json`,
-   and push to `master`. Flathub's CI builds and publishes within the hour.
+---
 
-**The manifest's source stanza differs between the two repos.** In *this* repo it
-builds from the working tree:
+## Maintenance loop
+
+Shipping an update is **cut a release** (above), then propagate the tag to the
+Flathub repo: point the manifest's source at the new tag, drop in the matching
+`cargo-sources.json`, and push to `master` — Flathub builds and publishes within
+the hour. The source stanza is the only thing that differs between the two repos:
 
 ```yaml
-sources:
-  - type: dir
-    path: ..
+# in THIS repo (builds the working tree)   |   # in the Flathub repo (reproducible)
+sources:                                   |   sources:
+  - type: dir                              |     - type: git
+    path: ..                               |       url: https://github.com/tombreit/Glotze.git
+                                           |       tag: vX.Y.Z
 ```
 
-The Flathub repo carries no app source of its own, so there you swap that for a
-git source pinned to the release tag (reproducible — never `main`):
-
-```yaml
-sources:
-  - type: git
-    url: https://github.com/tombreit/Glotze.git
-    tag: vX.Y.Z
-```
-
-`cargo-sources.json` only needs regenerating when dependencies changed since the
-previous release; copy the current one alongside the manifest either way.
+Regenerate `cargo-sources.json` only if dependencies changed since the previous
+release; copy the current file alongside the manifest either way. Pin to a **tag**,
+never `main`.
 
 ---
 
-## Caveats and tips
+## Checklist before opening the first PR
 
-- **Sandbox permissions are the most-reviewed thing.** Glotze's current set (`--share=network`, `--share=ipc`, `--socket=wayland`, `--socket=fallback-x11`, `--device=dri`, `--filesystem=xdg-videos`) is reasonable. If a reviewer asks why you need each, the answer is on the tin: HTTP, GTK/Wayland, hardware accel, write videos. Don't add anything you don't actually use — `--filesystem=home` will get flagged immediately.
+- [ ] `meson test -C build` passes (appstreamcli + desktop-file-validate)
+- [ ] `flatpak-builder-lint manifest …` and `… appstream …` are clean (or exceptioned)
+- [ ] At least one `<screenshot>` with an HTTPS URL that resolves
+- [ ] `<update_contact>` and the `bugtracker` + `vcs-browser` URLs set
+- [ ] `<releases>` top entry matches the `Cargo.toml` version
+- [ ] Offline `flatpak-builder` build succeeds and the app runs under `flatpak run`
+- [ ] Tag `vX.Y.Z` equals `v` + the `Cargo.toml` version
 
-- **The icon must be installed via `hicolor`.** Already done in your manifest. Don't try to bundle PNG sizes — the SVG at `share/icons/hicolor/scalable/apps/<id>.svg` is enough.
+## Caveats
 
-- **The desktop file must be a valid AppStream "desktop-id".** Filename must be `<app-id>.desktop`, `Exec=` must be the binary name, `Icon=` must match the app ID (without the `.svg`). Yours already does.
-
-- **`StartupWMClass`** must match what the binary sets via `g_set_prgname()` / `gtk::Application::application_id()`, or app-grid pinning gets confused. With libadwaita and an `Application` built from your app ID, the default WM class is the app ID, so the current `.desktop` line is correct.
-
-- **No `<icon>` element in metainfo.** Flathub resolves the icon from `hicolor`. Adding `<icon type="stock">…</icon>` is allowed but unnecessary.
-
-- **Translations come later.** A German-broadcast app probably eventually wants a German UI, but English-only is fine for first submission. When you add gettext, the metainfo and desktop files become `.in` templates merged by meson — see Gitte for the pattern.
-
-- **`cargo-sources.json` will be big.** Glotze's transitive dependency graph is sizable (gtk-rs + reqwest + jiff + serde + a Rustls TLS stack). Expect a multi-megabyte JSON file with hundreds of entries. That's normal. Don't be tempted to trim it by hand.
-
-- **Reviewers may ask for the screenshots to look more recent / clean.** Be ready to re-take them after a couple of UI tweaks.
-
-- **`update_contact` is the only required PII.** No real-name disclosure beyond the `<developer>` block.
-
-- **First-time submitter scrutiny.** Flathub gives first-time publishers a slightly closer look. Be patient, be polite, and read the reviewer's links to the spec rather than arguing.
-
----
-
-## Things to do before opening the PR (final checklist)
-
-- [x] `cargo-sources.json` exists and is up-to-date with `Cargo.lock`
-- [x] Manifest has no `--share=network` build arg
-- [x] `<update_contact>` set
-- [x] `<url type="bugtracker">` and `<url type="vcs-browser">` set
-- [ ] At least one `<screenshot>` in metainfo, with a real HTTPS URL **that resolves** (the entry exists; confirm the image is committed/pushed)
-- [ ] `<releases>` top entry matches the `Cargo.toml` version being submitted
-- [ ] `appstreamcli validate --no-net --explain` passes
-- [ ] `desktop-file-validate` passes
-- [ ] Local `flatpak-builder` build succeeds with no network
-- [ ] App runs end-to-end under `flatpak run` and downloads to `~/Videos/Glotze/`
-- [ ] Git tag `vX.Y.Z` created and **equals `v` + the `Cargo.toml` version**
-
-When all boxes are ticked, open the PR.
+- **Sandbox permissions are the most-reviewed thing.** Glotze's set
+  (`--share=network`/`ipc`, `--socket=wayland`/`fallback-x11`, `--device=dri`,
+  `--filesystem=xdg-videos`) maps 1:1 to what the app does. Don't add more —
+  `--filesystem=home` is flagged instantly.
+- **Never put `--share=network` in `build-args`.** Flathub builds are offline by
+  policy; the vendored `cargo-sources.json` is how cargo works without the network.
+- **Screenshots must resolve** over HTTPS at review time — Flathub mirrors them
+  but doesn't host them. PNG, ≥1280×720, 16:9, light theme.
+- **First-time submitters get extra scrutiny.** Be responsive and follow the
+  reviewer's links to the spec.

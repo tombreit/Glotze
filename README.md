@@ -80,44 +80,42 @@ rustup component add rustfmt clippy
 
 ---
 
-## Flatpak
+## Maintainer commands
 
-Tooling:
+Every entrypoint for developing, validating, and shipping the app. The detailed
+release and Flathub workflow lives in [`PUBLISHING.md`](PUBLISHING.md).
+
+| Task | Command |
+|---|---|
+| Run (dev) | `cargo run` |
+| Format · lint · test | `cargo fmt` · `cargo clippy` · `cargo test` (or `pre-commit run -a`) |
+| Build via meson (online) | `meson setup build && ninja -C build` |
+| Validate metadata | `meson test -C build` (appstreamcli + desktop-file-validate) |
+| Build the Flatpak (offline, like Flathub) | `flatpak-builder --user --install --force-clean build-dir build-aux/io.github.tombreit.Glotze.yml` |
+| Lint for Flathub | `flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/io.github.tombreit.Glotze.yml` |
+| Refresh vendored deps (only when deps change) | `./scripts/update-cargo-sources.sh` |
+| Cut a release | bump `Cargo.toml` + a metainfo `<release>`, tag `vX.Y.Z`, push → [PUBLISHING.md](PUBLISHING.md#cutting-a-release) |
+
+The outer build is meson (`meson.build` → `build-aux/cargo.sh` → cargo) and the
+version is single-sourced from `Cargo.toml`. A local `meson`/`ninja` or `cargo
+run` build is **online**; only the Flatpak path (`CARGO_NET_OFFLINE=true`) uses
+the vendored `cargo-sources.json`. For day-to-day work just use `cargo run`.
+
+### Flatpak prerequisites
+
+One-time SDK install for local Flatpak builds and the Flathub linter:
 
 ```sh
 sudo apt install flatpak-builder
 flatpak install flathub \
     org.gnome.Sdk//49 \
     org.gnome.Platform//49 \
-    org.freedesktop.Sdk.Extension.rust-stable//49
+    org.freedesktop.Sdk.Extension.rust-stable \
+    org.flatpak.Builder
 ```
 
-The extension branch tracks the runtime branch — when you bump the manifest
-to GNOME 50 later, install `…rust-stable//50` to match.
-
-Build + install for the current user:
-
-```sh
-flatpak-builder --user --install --force-clean build-dir \
-    build-aux/io.github.tombreit.Glotze.yml
-flatpak run io.github.tombreit.Glotze
-```
-
-The outer build system is meson (`meson.build`), which drives `cargo` via
-`build-aux/cargo.sh` and installs the binary plus all data files. The Flatpak
-manifest builds fully offline using the vendored `cargo-sources.json` at the
-repo root. After any `Cargo.lock` change, refresh it with
-`./scripts/update-cargo-sources.sh` and commit both files together.
-
-The version is single-sourced from `Cargo.toml` (`meson.build` reads it at
-configure time; the binary uses `CARGO_PKG_VERSION`), so cutting a release is one
-version bump plus a matching `vX.Y.Z` tag — pushing the tag builds the bundle and
-publishes a GitHub release. See [`PUBLISHING.md`](PUBLISHING.md) → *Cutting a
-release* for the explicit steps and the Flathub workflow this unlocks.
-
-> A local `meson setup build && ninja -C build` builds *online* against your
-> crate cache — only the Flatpak path (`CARGO_NET_OFFLINE=true`) uses the
-> vendored sources. For day-to-day development just use `cargo run`.
+The runtime/SDK branch (`49`) tracks the manifest; bump both together for GNOME
+50 later. `org.flatpak.Builder` provides `flatpak-builder-lint`.
 
 ---
 
