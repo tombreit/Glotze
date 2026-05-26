@@ -9,9 +9,6 @@ The data source is the public [MediathekViewWeb](https://mediathekviewweb.de/)
 JSON API, which already aggregates every German public broadcaster, so Glotze
 does not need to scrape per-channel sites.
 
-> Status: milestone 1 — search + download. Filters, pagination, subtitles,
-> and history are next.
-
 ---
 
 ## Install
