@@ -86,6 +86,7 @@ release and Flathub workflow lives in [`PUBLISHING.md`](PUBLISHING.md).
 | Build the Flatpak (offline, like Flathub) | `flatpak-builder --user --install --force-clean build-dir build-aux/io.github.tombreit.Glotze.yml` |
 | Lint for Flathub | `flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/io.github.tombreit.Glotze.yml` |
 | Refresh vendored deps (only when deps change) | `./scripts/update-cargo-sources.sh` |
+| Preflight (full local CI before push/tag) | `./scripts/preflight.sh --full` (fmt·clippy·test + manifest/appstream lint + offline flatpak build + `flatpak-builder-lint repo`; drop `--full` for the fast checks only) |
 | Cut a release | bump `Cargo.toml` + a metainfo `<release>`, tag `vX.Y.Z`, push → [PUBLISHING.md](PUBLISHING.md#cutting-a-release) |
 
 The outer build is meson (`meson.build` → `build-aux/cargo.sh` → cargo) and the

@@ -74,6 +74,10 @@ cargo update -p glotze --offline          # 2. sync Cargo.lock
 #        <url>https://github.com/tombreit/Glotze/releases/tag/vX.Y.Z</url>
 #      </release>
 git commit -am "Release X.Y.Z"            # 5. (cargo-sources.json too, if step 3 ran)
+./scripts/preflight.sh --full             #    full local CI — fmt/clippy/test + offline
+                                          #    flatpak build + `flatpak-builder-lint repo`.
+                                          #    Tag only if this is green; it's the same
+                                          #    surface flatpak.yml runs *after* the push.
 git tag vX.Y.Z                            #    the tag MUST equal v + the Cargo.toml version
 git push origin main vX.Y.Z               # 6. push
 ```
@@ -90,7 +94,10 @@ only when a release is worth a changelog line — Flathub renders it on the list
 
 **Shortcut:** `cargo release patch -x --no-confirm` does steps 1–6 in one command
 (config in `Cargo.toml` under `[package.metadata.release]`; `cargo install
-cargo-release` first). Run `cargo release patch` alone for a dry run. If a run
+cargo-release` first). Its pre-release hook runs `./scripts/preflight.sh --release`
+(which also regenerates `cargo-sources.json`) *before* the commit/tag/push, so a
+release that would fail CI aborts without burning a tag — expect it to take a few
+minutes. Run `cargo release patch` alone for a dry run. If a run
 leaves files modified but uncommitted, just `git commit`/`tag`/`push` them — and
 never move an existing remote tag (delete and re-tag instead; the release-asset
 logic keys on the tag name).

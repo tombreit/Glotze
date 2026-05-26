@@ -48,7 +48,13 @@ sign-tag = false
 sign-commit = false
 allow-branch = ["main"]
 push = true
-pre-release-hook = ["./scripts/update-cargo-sources.sh"]
+# Runs *after* the version/metainfo bump but *before* the commit/tag/push, so a
+# release that would fail CI aborts here and never burns a tag. `--release` makes
+# preflight regenerate cargo-sources.json (the old hook's job) and then run the
+# full check: fmt/clippy/test + the offline flatpak build + `flatpak-builder-lint
+# repo`. That build is slow, so `cargo release` now takes a few minutes — that's
+# the point. Run `./scripts/preflight.sh` by hand for the fast checks any time.
+pre-release-hook = ["./scripts/preflight.sh", "--release"]
 
 [[package.metadata.release.pre-release-replacements]]
 file = "data/io.github.tombreit.Glotze.metainfo.xml"

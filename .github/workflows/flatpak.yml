@@ -42,6 +42,14 @@ jobs:
           # defaults to `master` and `flatpak build-bundle … stable` fails with
           # "Refspec … not found".
           branch: stable
+          # Mirror AppStream screenshots into the OSTree (a `screenshots/<arch>`
+          # ref) exactly like Flathub's own build, so the "Lint repo" step below
+          # passes its appstream-screenshots-not-mirrored-in-ostree /
+          # appstream-external-screenshot-url checks. flatpak-builder downloads
+          # the URLs from the metainfo, rewrites them to dl.flathub.org/media and
+          # (since 1.4.5) commits the ref automatically. These two errors can't be
+          # waived via flathub.json, so mirroring is the only fix.
+          mirror-screenshots-url: https://dl.flathub.org/media
           # Runs `meson test` inside the sandbox: appstreamcli validate +
           # desktop-file-validate (the targets in data/meson.build).
           run-tests: true
