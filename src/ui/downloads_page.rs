@@ -1,8 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gtk::gio;
 
 use crate::download::progress::{Progress, State};
 
@@ -18,6 +20,10 @@ struct RowWidgets {
     row: adw::ActionRow,
     bar: gtk::ProgressBar,
     icon: gtk::Image,
+    open_btn: gtk::Button,
+    /// Filled in once the download reaches `Done`; read by the open-folder
+    /// button's click handler.
+    path: Rc<RefCell<Option<PathBuf>>>,
 }
 
 impl DownloadsPage {
@@ -114,7 +120,9 @@ impl DownloadsPage {
                     human_bytes(*bytes_total),
                     path.display()
                 ));
-                entry.icon.set_icon_name(Some("emblem-ok-symbolic"));
+                entry.icon.set_icon_name(Some("object-select-symbolic"));
+                *entry.path.borrow_mut() = Some(path.clone());
+                entry.open_btn.set_visible(true);
             }
             State::Failed { reason } => {
                 entry.bar.set_fraction(0.0);
@@ -145,8 +153,49 @@ impl DownloadsPage {
             .build();
         row.add_suffix(&bar);
 
+        // Reveal-in-file-manager affordance. Hidden until the download
+        // completes (see the `Done` arm of `apply`); added last so it sits at
+        // the trailing edge of the row.
+        let path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
+        let open_btn = gtk::Button::builder()
+            .icon_name("folder-open-symbolic")
+            .tooltip_text("Show in Files")
+            .valign(gtk::Align::Center)
+            .visible(false)
+            .css_classes(["flat"])
+            .build();
+        open_btn.connect_clicked({
+            let path = path.clone();
+            move |btn| {
+                let Some(file_path) = path.borrow().clone() else {
+                    return;
+                };
+                // `open_containing_folder` opens the parent folder and selects
+                // the file. Under Flatpak it goes through the OpenURI portal,
+                // so no extra filesystem permission is required.
+                let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(&file_path)));
+                let window = btn.root().and_downcast::<gtk::Window>();
+                launcher.open_containing_folder(
+                    window.as_ref(),
+                    gio::Cancellable::NONE,
+                    |res| {
+                        if let Err(e) = res {
+                            log::warn!("could not reveal download in file manager: {e}");
+                        }
+                    },
+                );
+            }
+        });
+        row.add_suffix(&open_btn);
+
         self.list.append(&row);
-        RowWidgets { row, bar, icon }
+        RowWidgets {
+            row,
+            bar,
+            icon,
+            open_btn,
+            path,
+        }
     }
 }
 
