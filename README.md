@@ -107,9 +107,13 @@ The outer build system is meson (`meson.build`), which drives `cargo` via
 `build-aux/cargo.sh` and installs the binary plus all data files. The Flatpak
 manifest builds fully offline using the vendored `cargo-sources.json` at the
 repo root. After any `Cargo.lock` change, refresh it with
-`./scripts/update-cargo-sources.sh` and commit both files together. See
-[`PUBLISHING.md`](PUBLISHING.md) for the Flathub-release workflow this
-unlocks.
+`./scripts/update-cargo-sources.sh` and commit both files together.
+
+The version is single-sourced from `Cargo.toml` (`meson.build` reads it at
+configure time; the binary uses `CARGO_PKG_VERSION`), so cutting a release is one
+version bump plus a matching `vX.Y.Z` tag — pushing the tag builds the bundle and
+publishes a GitHub release. See [`PUBLISHING.md`](PUBLISHING.md) → *Cutting a
+release* for the explicit steps and the Flathub workflow this unlocks.
 
 > A local `meson setup build && ninja -C build` builds *online* against your
 > crate cache — only the Flatpak path (`CARGO_NET_OFFLINE=true`) uses the

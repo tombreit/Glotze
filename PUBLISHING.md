@@ -49,7 +49,7 @@ Before you touch anything, decide on these — they're hard to change later:
   - GitHub release asset URLs (stable, you control them, embedded in the tag)
   - A `gh-pages` branch in this same repo
   - Any HTTPS host you trust to stay up
-- **Versioning**: Flathub expects each `<release version="…" date="…">` in metainfo to match the version of the binary it builds. Decide if `Cargo.toml`'s `version` is the source of truth (recommended).
+- **Versioning**: `Cargo.toml`'s `version` is the **single source of truth**. `meson.build` reads it at configure time, the About dialog uses `CARGO_PKG_VERSION`, and the release tag is `v` + that version — so nothing can drift. Flathub expects each `<release version="…" date="…">` in the metainfo to match the binary it builds; the steps below keep them aligned.
 
 ---
 
@@ -63,6 +63,17 @@ Flathub builds run without network. Every crate Glotze depends on is shipped as 
 - `scripts/update-cargo-sources.sh` regenerates it. Run after any `cargo update` / `Cargo.toml` change, then commit both files together.
 - The manifest (`build-aux/io.github.tombreit.Glotze.yml`) is `buildsystem: meson`; meson drives cargo through `build-aux/cargo.sh`, which sets `CARGO_NET_OFFLINE=true` and runs `cargo build --release --offline --locked` against the vendored sources. The manifest pulls in `../cargo-sources.json` as a second source.
 - The vendor config (`cargo/config.toml` pointing at `cargo/vendor/`) is the last `inline` entry of `cargo-sources.json`, so no `.cargo/config.toml` is committed at the repo root — local `cargo build` still uses the regular crates.io cache.
+- The generator is pinned to a specific `flatpak-builder-tools` commit (`GENERATOR_REF` in the script) so regenerating is reproducible; the downloaded helper is cached under a SHA-suffixed filename and gitignored.
+
+> **Why is `cargo-sources.json` committed here when GNOME World apps (Shortwave,
+> Fractal, Loupe…) don't have it in their source trees?** Because Flathub builds
+> are offline, every Rust app needs this vendoring manifest *somewhere* — those
+> apps keep it in their separate `flathub/<app-id>` packaging repo (Fractal's even
+> has a same-named `update-cargo-sources.sh`), since their GNOME *nightly* CI
+> builds cargo online and doesn't need it. Glotze has no GNOME Nightly and its
+> `flatpak.yml` CI builds an offline bundle that mirrors Flathub, so this repo
+> doubles as the Flathub-prep repo and tracks the file directly. It is required,
+> not accidental.
 
 **Re-running the generator:**
 
@@ -200,7 +211,7 @@ When everything above passes locally:
 2. Check out the `new-pr` branch (not `master`).
 3. Create a new branch from `new-pr` named after the app ID: `io.github.tombreit.Glotze`.
 4. Add the following files at the repo root of your branch:
-   - `io.github.tombreit.Glotze.yml` (the manifest, copied from your `build-aux/`)
+   - `io.github.tombreit.Glotze.yml` (the manifest, copied from your `build-aux/`) — **swap the `dir` source for a `git` source pinned to your release tag**, as shown under "the maintenance loop"; Flathub has no working tree to build from.
    - `cargo-sources.json`
    - A `flathub.json` with your build-options if any (usually empty for a single-arch app — Flathub builds for x86_64 and aarch64 by default; opt out of one with `"only-arches": ["x86_64"]` if needed)
 5. Open the PR against `flathub:new-pr`. Title format: `Add io.github.tombreit.Glotze`.
@@ -283,15 +294,16 @@ git tag v0.1.0-rc1
 git push origin v0.1.0-rc1
 ```
 
-That's it. About 5–10 minutes later a draft GitHub release at
+That's it. About 5–10 minutes later a published GitHub release at
 `v0.1.0-rc1` exists with:
 
 - `glotze.flatpak` attached as a release asset
 - Auto-generated release notes built from the commit log since the previous tag
 
-Edit the description, mark it as "latest" if you want, and publish. Testers
-download `glotze.flatpak` from the release page and run the `flatpak install`
-command shown above.
+The release goes live immediately; edit the notes afterward if you like (or mark
+it as a pre-release on the release page for an `-rc` tag). Testers download
+`glotze.flatpak` from the release page and run the `flatpak install` command
+shown above.
 
 **Caveats:**
 
@@ -357,113 +369,102 @@ Option C only if you want hosted updates without going through Flathub.
 
 ## Cutting a release
 
-Glotze uses [`cargo-release`] to automate the version bump, lockfile sync,
-metainfo stamping, vendored-sources regeneration, commit, tag, and push as
-one atomic operation. Configured in `Cargo.toml` under
-`[package.metadata.release]`.
+`Cargo.toml`'s `version` is the source of truth and the git tag is `v` + that
+version. A release is six explicit steps. Most releases don't change
+dependencies, so they don't even touch `cargo-sources.json` or rerun the
+generator.
+
+```sh
+# 1. Bump the version — this one edit drives everything else:
+#      Cargo.toml  ->  version = "X.Y.Z"
+#    meson.build reads it at configure time; the binary picks it up via
+#    CARGO_PKG_VERSION. No other file holds the version number.
+
+cargo update -p glotze --offline          # 2. sync Cargo.lock to the new version
+
+# 3. ONLY if you changed dependencies this release, refresh the vendored sources:
+#      ./scripts/update-cargo-sources.sh
+
+# 4. Add a release entry at the TOP of <releases> in
+#    data/io.github.tombreit.Glotze.metainfo.xml:
+#
+#      <release version="X.Y.Z" date="YYYY-MM-DD">
+#        <url>https://github.com/tombreit/Glotze/releases/tag/vX.Y.Z</url>
+#      </release>
+
+git commit -am "Release X.Y.Z"            # 5. commit (cargo-sources.json too, if step 3 ran)
+git tag vX.Y.Z                            #    the tag MUST equal v + the Cargo.toml version
+git push origin main vX.Y.Z               # 6. push
+```
+
+Step 6 triggers `.github/workflows/flatpak.yml`: it builds the bundle on the tag
+and **publishes** a GitHub release with `glotze.flatpak` attached and notes
+auto-generated from the commit log. That is the whole loop.
+
+> The metainfo release entry can stay minimal (version + date + url). Add a
+> short `<description>` only when a release is worth a changelog line — Flathub
+> renders it on the listing.
+
+### Shortcut: `cargo release`
+
+[`cargo-release`] collapses steps 1–6 into one command. Optional — the manual
+steps above are the canonical path; this just automates them (config lives in
+`Cargo.toml` under `[package.metadata.release]`).
 
 [`cargo-release`]: https://github.com/crate-ci/cargo-release
 
-**One-time setup:**
-
 ```sh
-cargo install cargo-release
+cargo install cargo-release                # one-time
+
+cargo release patch                        # dry run: previews everything (`git restore .` to undo)
+cargo release patch -x --no-confirm        # real run: bump, sync, stamp metainfo, commit, tag, push
 ```
 
-**To cut a release:**
+Use `minor` / `major` or an explicit `cargo release X.Y.Z` as needed. It runs
+the `pre-release-hook` (`update-cargo-sources.sh`) every time — a no-op when
+dependencies are unchanged. `-x` executes; `--no-confirm` skips the confirmation
+prompt that, if declined, would leave a half-applied release on disk.
 
-```sh
-# Dry run first — prints every step but also runs the pre-release hook
-# (which regenerates cargo-sources.json) and previews file changes on disk.
-# If the diff looks wrong, `git restore .` cleans up.
-cargo release patch
-
-# Real run — bumps, regenerates sources, commits, tags, pushes.
-cargo release patch -x --no-confirm
-```
-
-Use `minor` or `major` for non-patch bumps, or `cargo release 1.2.3 -x
---no-confirm` for an explicit version. The flatpak workflow then builds the
-bundle on the new tag and attaches `glotze.flatpak` to a draft GitHub
-release — edit the auto-generated notes and publish.
-
-> **Why `--no-confirm`?** Without it, cargo-release modifies your files to
-> preview the release (version bump, metainfo entry, hook output) and then
-> prompts `Continue? [y/N]`. The prompt defaults to NO; if you press Enter,
-> you're left with a half-applied release on disk and no commit, tag, or
-> push. `--no-confirm` skips the prompt entirely. If you do end up in that
-> half-applied state, see "Recovery" below.
-
-### What `cargo release` actually does
-
-The tool runs these in order; knowing the sequence helps when something goes
-wrong:
-
-1. Bumps `version` in `Cargo.toml`.
-2. Cargo's own metadata update syncs `Cargo.lock` (otherwise CI's `--locked`
-   clippy step in `.github/workflows/lint.yml` would fail).
-3. Runs `./scripts/update-cargo-sources.sh` (the `pre-release-hook`),
-   regenerating `cargo-sources.json` — without this the offline flatpak
-   build in `.github/workflows/flatpak.yml` would fail.
-4. Prepends a new `<release version="X.Y.Z" date="YYYY-MM-DD">` block to
-   `<releases>` in `data/io.github.tombreit.Glotze.metainfo.xml` (the
-   `pre-release-replacements` entry).
-5. Commits `Cargo.toml`, `Cargo.lock`, `cargo-sources.json`, and the
-   metainfo together.
-6. Tags `vX.Y.Z` (the `v` prefix is required by `flatpak.yml`'s
-   `tags: ['v*']` filter; the rest matches `Cargo.toml`).
-7. Pushes `main` and the tag.
-
-### Doing it by hand
-
-If `cargo-release` isn't installed, or you need to deviate from the
-templated flow, run the same steps in the same order:
-
-```sh
-# 1. Bump the version in Cargo.toml manually, then:
-cargo update -p glotze --offline
-./scripts/update-cargo-sources.sh
-# 2. Edit data/io.github.tombreit.Glotze.metainfo.xml: add a <release> entry.
-git add Cargo.toml Cargo.lock cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml
-git commit -m "Release X.Y.Z"
-git tag vX.Y.Z
-git push origin main vX.Y.Z
-```
-
-### Recovery
-
-**Half-applied release** (cargo-release modified files but didn't commit/tag
-— typically because `--no-confirm` was forgotten and the prompt got declined):
-
-```sh
-# Files are already modified correctly. Just finish the job manually:
-git add Cargo.toml Cargo.lock cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml
-git commit -m "Release X.Y.Z"      # match the version in Cargo.toml
-git tag vX.Y.Z
-git push origin main vX.Y.Z
-```
-
-Or, if you'd rather start fresh: `git restore Cargo.toml Cargo.lock
-cargo-sources.json data/io.github.tombreit.Glotze.metainfo.xml` and re-run
-`cargo release patch -x --no-confirm`.
-
-**Tag typo on the remote:** delete the remote tag (`git push origin
-:refs/tags/vX.Y.Z`), fix the source, and re-tag. Do not move an existing tag
-to a different commit — downstream caches and the flatpak action's
-release-asset logic key on the tag name.
+> **If a run leaves files modified but uncommitted** (declined prompt): the edits
+> are already correct — just `git commit -am "Release X.Y.Z" && git tag vX.Y.Z &&
+> git push origin main vX.Y.Z`, or `git restore .` and retry.
+> **Never move an existing remote tag** — the flatpak action keys release assets
+> on the tag name. Delete it (`git push origin :refs/tags/vX.Y.Z`) and re-tag instead.
 
 ---
 
 ## After acceptance: the maintenance loop
 
-Once the app is on Flathub, the workflow for shipping an update is:
+Once the app is on Flathub, shipping an update is just **cut a release as above**,
+then propagate the tag to the Flathub packaging repo:
 
-1. In **this repo**: bump `Cargo.toml` `version`, add a new `<release>` entry to `metainfo.xml` (with the date and a short changelog), tag and release on GitHub.
-2. Run `scripts/update-cargo-sources.sh` (or the equivalent generator command) — `Cargo.lock` changes, so `cargo-sources.json` must regenerate.
-3. In **the Flathub repo** (`flathub/io.github.tombreit.Glotze`): update the manifest's source ref (point to the new tag), drop in the new `cargo-sources.json`, push to `master`.
-4. Flathub's CI builds and publishes within an hour.
+1. Cut the release in **this repo** ("Cutting a release"). That tags `vX.Y.Z` and
+   publishes the GitHub release.
+2. In **the Flathub repo** (`flathub/io.github.tombreit.Glotze`): point the
+   manifest's source at the new **tag**, drop in the matching `cargo-sources.json`,
+   and push to `master`. Flathub's CI builds and publishes within the hour.
 
-Pin your sources to a **tag** in the Flathub manifest, not to `main`. Tags are reproducible; branches drift.
+**The manifest's source stanza differs between the two repos.** In *this* repo it
+builds from the working tree:
+
+```yaml
+sources:
+  - type: dir
+    path: ..
+```
+
+The Flathub repo carries no app source of its own, so there you swap that for a
+git source pinned to the release tag (reproducible — never `main`):
+
+```yaml
+sources:
+  - type: git
+    url: https://github.com/tombreit/Glotze.git
+    tag: vX.Y.Z
+```
+
+`cargo-sources.json` only needs regenerating when dependencies changed since the
+previous release; copy the current one alongside the manifest either way.
 
 ---
 
@@ -495,14 +496,14 @@ Pin your sources to a **tag** in the Flathub manifest, not to `main`. Tags are r
 
 - [x] `cargo-sources.json` exists and is up-to-date with `Cargo.lock`
 - [x] Manifest has no `--share=network` build arg
-- [ ] At least one `<screenshot>` in metainfo, with a real HTTPS URL that resolves
-- [ ] `<update_contact>` set
-- [ ] `<url type="bugtracker">` and `<url type="vcs-browser">` set
-- [ ] `<releases>` includes the version currently in `Cargo.toml`
+- [x] `<update_contact>` set
+- [x] `<url type="bugtracker">` and `<url type="vcs-browser">` set
+- [ ] At least one `<screenshot>` in metainfo, with a real HTTPS URL **that resolves** (the entry exists; confirm the image is committed/pushed)
+- [ ] `<releases>` top entry matches the `Cargo.toml` version being submitted
 - [ ] `appstreamcli validate --no-net --explain` passes
 - [ ] `desktop-file-validate` passes
 - [ ] Local `flatpak-builder` build succeeds with no network
 - [ ] App runs end-to-end under `flatpak run` and downloads to `~/Videos/Glotze/`
-- [ ] Git tag created for the version you're submitting
+- [ ] Git tag `vX.Y.Z` created and **equals `v` + the `Cargo.toml` version**
 
 When all boxes are ticked, open the PR.

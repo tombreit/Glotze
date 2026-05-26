@@ -4,8 +4,9 @@
 # own build dir inside .flatpak-builder.
 /build/
 
-# Vendored flatpak helper, re-downloaded by scripts/update-cargo-sources.sh.
-/scripts/flatpak-cargo-generator.py
+# Vendored flatpak helper, re-downloaded by scripts/update-cargo-sources.sh
+# (cache filename embeds the pinned generator commit, hence the glob).
+/scripts/flatpak-cargo-generator*.py
 
 # Local flatpak-builder output: the workdir, its cache, the per-build OSTree
 # repo, and any single-file bundle produced by `flatpak build-bundle`.

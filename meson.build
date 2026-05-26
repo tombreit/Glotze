@@ -1,7 +1,14 @@
 project(
   'glotze',
-  version: '0.0.7',
-  meson_version: '>= 0.59.0',
+  # Single source of truth: read the [package] version from Cargo.toml. Only that
+  # line starts with `version = ` (dependency versions are mid-line), so the sed
+  # match is unambiguous and needs no backslash escaping. Keeps meson, the binary
+  # (CARGO_PKG_VERSION) and the git tag from ever drifting.
+  version: run_command(
+    'sed', '-n', 's/^version = //p', 'Cargo.toml',
+    check: true,
+  ).stdout().strip().replace('"', ''),
+  meson_version: '>= 1.4',
   license: 'EUPL-1.2',
 )
 
