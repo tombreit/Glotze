@@ -118,7 +118,7 @@ fn download_to_disk(
     tx: &Sender<Progress>,
     cancel: &AtomicBool,
 ) -> Result<Outcome> {
-    let dir = videos_dir().ok_or_else(|| anyhow!("could not resolve Videos directory"))?;
+    let dir = download_dir().ok_or_else(|| anyhow!("could not resolve Videos directory"))?;
     std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
 
     let ext = guess_extension(url).unwrap_or("mp4");
@@ -194,14 +194,31 @@ fn cleanup_partial(path: &Path) {
     }
 }
 
-fn videos_dir() -> Option<PathBuf> {
-    // All Glotze downloads land in a dedicated subfolder so they don't mingle
-    // with other things in ~/Videos. Created on demand by `create_dir_all`.
+/// The directory Glotze downloads into — `~/Videos/Glotze` — when a Videos (or
+/// home) directory can be resolved. All downloads land in a dedicated subfolder
+/// so they don't mingle with other things in `~/Videos`; created on demand by
+/// `create_dir_all`.
+pub fn download_dir() -> Option<PathBuf> {
     gtk::glib::user_special_dir(gtk::glib::UserDirectory::Videos)
         .map(|p| p.join("Glotze"))
         .or_else(|| {
             std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Videos").join("Glotze"))
         })
+}
+
+/// The download directory as a short display string, with `$HOME` collapsed to
+/// `~` (e.g. `~/Videos/Glotze`). Falls back to a generic phrase if no Videos
+/// directory can be resolved.
+pub fn download_dir_display() -> String {
+    let Some(dir) = download_dir() else {
+        return "your Videos folder".to_string();
+    };
+    if let Some(home) = std::env::var_os("HOME")
+        && let Ok(rel) = dir.strip_prefix(PathBuf::from(home))
+    {
+        return format!("~/{}", rel.display());
+    }
+    dir.display().to_string()
 }
 
 fn guess_extension(url: &str) -> Option<&str> {

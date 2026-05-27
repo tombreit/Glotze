@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
 use gtk::{gdk, gio, glib};
 
+use crate::download::download_dir_display;
 use crate::window::AppWindow;
 
 pub struct Application(adw::Application);
@@ -26,6 +27,7 @@ impl Application {
         app.connect_activate(|app| {
             let window = AppWindow::new(app);
             window.present();
+            maybe_show_welcome(app);
         });
 
         Self(app)
@@ -64,7 +66,9 @@ fn show_about(app: &adw::Application) {
         )
         .comments(
             "Search and download episodes from German public broadcaster \
-             Mediatheken (ARD, ZDF, 3sat, arte, …) via the MediathekViewWeb API.",
+             Mediatheken (ARD, ZDF, 3sat, arte, …) via the MediathekViewWeb API.\n\n\
+             “Glotze” is affectionate German slang for a TV set — roughly “the \
+             box” or “the telly”.",
         )
         .build();
 
@@ -84,6 +88,72 @@ fn show_about(app: &adw::Application) {
             "App icon: original test-card rendition, inspired by TestChart, CC0 https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
         ],
     );
+
+    dialog.present(app.active_window().as_ref());
+}
+
+/// Show the orientation dialog on launch until the user opts out via its
+/// "Don't show this again" checkbox. The opt-out is a single marker file under
+/// the user data dir — no `GSettings` schema/plumbing, and it works under
+/// `cargo run` and Flatpak.
+fn maybe_show_welcome(app: &adw::Application) {
+    let Some(marker) = welcome_marker(app) else {
+        return;
+    };
+    if marker.exists() {
+        return;
+    }
+    show_welcome(app, marker);
+}
+
+fn welcome_marker(app: &adw::Application) -> Option<PathBuf> {
+    let app_id = app.application_id()?;
+    Some(
+        glib::user_data_dir()
+            .join(app_id.as_str())
+            .join("welcome-shown"),
+    )
+}
+
+fn show_welcome(app: &adw::Application, marker: PathBuf) {
+    let body = format!(
+        "Glotze <b>downloads</b> episodes for you — there's no streaming and no \
+         built-in player.\n\n\
+         • Content comes from the German public broadcasters (ARD, ZDF, 3sat, \
+         arte, …).\n\
+         • Files are saved to <tt>{}</tt>.\n\
+         • Some videos are geo-blocked to Germany, Austria or Switzerland.",
+        glib::markup_escape_text(&download_dir_display()),
+    );
+
+    let dont_show = gtk::CheckButton::builder()
+        .label("Don't show this again")
+        .halign(gtk::Align::Center)
+        .build();
+
+    let dialog = adw::AlertDialog::builder()
+        .heading("Welcome to Glotze")
+        .body(body)
+        .body_use_markup(true)
+        .extra_child(&dont_show)
+        .build();
+    dialog.add_response("ok", "_Got it");
+    dialog.set_default_response(Some("ok"));
+    dialog.set_close_response("ok");
+
+    // Remember the opt-out only when the box is ticked; otherwise the dialog
+    // greets the user again next launch.
+    dialog.connect_response(None, move |_dialog: &adw::AlertDialog, _response: &str| {
+        if !dont_show.is_active() {
+            return;
+        }
+        if let Some(parent) = marker.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(e) = std::fs::write(&marker, b"") {
+            log::warn!("could not record welcome marker {}: {e}", marker.display());
+        }
+    });
 
     dialog.present(app.active_window().as_ref());
 }

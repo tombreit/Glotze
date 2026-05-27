@@ -9,6 +9,69 @@ use models::Show;
 
 const QUERY_URL: &str = "https://mediathekviewweb.de/api/query";
 
+/// How the result list is ordered. `MediathekViewWeb` honours `sortBy` for the
+/// empty-query "recent" view, but free-text queries come back relevance-ranked,
+/// so the same order is also enforced client-side via [`Sort::apply`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Sort {
+    #[default]
+    DateNewest,
+    DateOldest,
+    DurationLongest,
+    DurationShortest,
+}
+
+impl Sort {
+    /// The (`sortBy`, `sortOrder`) pair sent in the request.
+    fn request_fields(self) -> (&'static str, &'static str) {
+        match self {
+            Sort::DateNewest => ("timestamp", "desc"),
+            Sort::DateOldest => ("timestamp", "asc"),
+            Sort::DurationLongest => ("duration", "desc"),
+            Sort::DurationShortest => ("duration", "asc"),
+        }
+    }
+
+    /// Stable string id, used as the `win.sort` action's state.
+    pub fn id(self) -> &'static str {
+        match self {
+            Sort::DateNewest => "date-newest",
+            Sort::DateOldest => "date-oldest",
+            Sort::DurationLongest => "duration-longest",
+            Sort::DurationShortest => "duration-shortest",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<Self> {
+        match id {
+            "date-newest" => Some(Sort::DateNewest),
+            "date-oldest" => Some(Sort::DateOldest),
+            "duration-longest" => Some(Sort::DurationLongest),
+            "duration-shortest" => Some(Sort::DurationShortest),
+            _ => None,
+        }
+    }
+
+    /// Sort `shows` in place by the chosen key/order. Shows missing the sort
+    /// key always sort last, regardless of direction.
+    pub fn apply(self, shows: &mut [Show]) {
+        match self {
+            Sort::DateNewest => {
+                shows.sort_by_key(|s| std::cmp::Reverse(s.timestamp.unwrap_or(i64::MIN)));
+            }
+            Sort::DateOldest => {
+                shows.sort_by_key(|s| s.timestamp.unwrap_or(i64::MAX));
+            }
+            Sort::DurationLongest => {
+                shows.sort_by_key(|s| std::cmp::Reverse(s.duration.unwrap_or(0)));
+            }
+            Sort::DurationShortest => {
+                shows.sort_by_key(|s| s.duration.unwrap_or(u64::MAX));
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Client {
     http: reqwest::blocking::Client,
@@ -29,7 +92,7 @@ impl Client {
     /// An empty `query` is interpreted as "give me the most recent episodes":
     /// the `queries` array is sent empty and future broadcasts are excluded.
     /// This is what populates the cold-start view.
-    pub fn search(&self, query: &str, offset: u32, size: u32) -> Result<Vec<Show>> {
+    pub fn search(&self, query: &str, offset: u32, size: u32, sort: Sort) -> Result<Vec<Show>> {
         let is_recent = query.trim().is_empty();
         let queries = if is_recent {
             Vec::new()
@@ -39,10 +102,11 @@ impl Client {
                 query: query.to_string(),
             }]
         };
+        let (sort_by, sort_order) = sort.request_fields();
         let body = QueryRequest {
             queries,
-            sort_by: "timestamp".into(),
-            sort_order: "desc".into(),
+            sort_by: sort_by.into(),
+            sort_order: sort_order.into(),
             // For the recent view we only want what already aired.
             future: !is_recent,
             offset,
@@ -69,9 +133,9 @@ impl Client {
         }
         let mut results = answer.result.map(|r| r.results).unwrap_or_default();
         // `sortBy` in the request is honored for the empty-query "recent" view
-        // but free-text queries fall back to relevance ranking, so enforce
-        // newest-first client-side. Shows without a timestamp sort last.
-        results.sort_by_key(|s| std::cmp::Reverse(s.timestamp.unwrap_or(i64::MIN)));
+        // but free-text queries fall back to relevance ranking, so enforce the
+        // chosen order client-side too.
+        sort.apply(&mut results);
         Ok(results)
     }
 }

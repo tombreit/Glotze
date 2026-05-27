@@ -5,8 +5,8 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk::{gio, glib};
 
-use crate::api::Client;
 use crate::api::models::Show;
+use crate::api::{Client, Sort};
 use crate::download::{Manager, progress::State};
 use crate::ui::downloads_page::DownloadsPage;
 use crate::ui::results_page::ResultsPage;
@@ -35,16 +35,33 @@ impl AppWindow {
             .placeholder_text("Search title or topic…")
             .hexpand(true)
             .build();
-        // Fixed search bar above the scrolling results. Clamped to the same
-        // width as the results list below it, with uniform padding so the entry
-        // isn't edge-to-edge.
+        // Sort control: a menu button driven by the stateful `win.sort` action,
+        // wired further down once `last_results`/`sort` exist.
+        let sort_menu = gio::Menu::new();
+        sort_menu.append(Some("Newest first"), Some("win.sort::date-newest"));
+        sort_menu.append(Some("Oldest first"), Some("win.sort::date-oldest"));
+        sort_menu.append(Some("Longest first"), Some("win.sort::duration-longest"));
+        sort_menu.append(Some("Shortest first"), Some("win.sort::duration-shortest"));
+        let sort_button = gtk::MenuButton::builder()
+            .icon_name("view-sort-descending-symbolic")
+            .tooltip_text("Sort results")
+            .valign(gtk::Align::Center)
+            .menu_model(&sort_menu)
+            .build();
+
+        // Fixed search bar above the scrolling results: the entry plus the sort
+        // button. Clamped to the same width as the results list below it, with
+        // uniform padding so the row isn't edge-to-edge.
+        let search_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        search_row.append(&search_entry);
+        search_row.append(&sort_button);
         let search_clamp = adw::Clamp::builder()
             .maximum_size(860)
             .margin_top(12)
             .margin_bottom(12)
             .margin_start(12)
             .margin_end(12)
-            .child(&search_entry)
+            .child(&search_row)
             .build();
 
         let search_page_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -77,6 +94,12 @@ impl AppWindow {
 
         install_window_actions(&window, &view_stack, &search_entry);
 
+        // Current sort order plus the last batch of results, so a sort change
+        // can re-order what's already on screen without hitting the network.
+        let sort = Rc::new(Cell::new(Sort::default()));
+        let last_results: Rc<RefCell<Vec<Show>>> = Rc::new(RefCell::new(Vec::new()));
+        wire_sort(&window, &results, &last_results, &sort);
+
         // HTTP client init is fallible (TLS bootstrap). If it fails the app
         // still launches — we just disable search and tell the user why.
         match Client::new() {
@@ -90,12 +113,16 @@ impl AppWindow {
                     &toast_overlay,
                     client.clone(),
                     Rc::clone(&generation),
+                    Rc::clone(&sort),
+                    Rc::clone(&last_results),
                 );
                 kick_initial_search(
                     client,
                     Rc::clone(&generation),
                     Rc::clone(&results),
                     toast_overlay.clone(),
+                    sort.get(),
+                    Rc::clone(&last_results),
                 );
                 wire_row_action(&results, &toast_overlay, &window, Rc::clone(&manager));
                 wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
@@ -168,6 +195,46 @@ fn install_window_actions(
         ))
         .build();
     window.add_action_entries([search_focus, show_search, show_downloads]);
+}
+
+/// Stateful `win.sort` action backing the sort menu. Changing it re-orders the
+/// already-fetched results in place (no refetch); new searches read the current
+/// value via `sort`.
+fn wire_sort(
+    window: &adw::ApplicationWindow,
+    results: &Rc<ResultsPage>,
+    last_results: &Rc<RefCell<Vec<Show>>>,
+    sort: &Rc<Cell<Sort>>,
+) {
+    let action = gio::ActionEntry::builder("sort")
+        .parameter_type(Some(glib::VariantTy::STRING))
+        .state(Sort::default().id().to_variant())
+        .activate(glib::clone!(
+            #[strong]
+            results,
+            #[strong]
+            last_results,
+            #[strong]
+            sort,
+            move |_win: &adw::ApplicationWindow, action, param| {
+                let Some(param) = param else {
+                    return;
+                };
+                let Some(id) = param.get::<String>() else {
+                    return;
+                };
+                let Some(new_sort) = Sort::from_id(&id) else {
+                    return;
+                };
+                action.set_state(param);
+                sort.set(new_sort);
+                let mut shows = last_results.borrow().clone();
+                new_sort.apply(&mut shows);
+                results.set_shows(&shows);
+            }
+        ))
+        .build();
+    window.add_action_entries([action]);
 }
 
 fn wire_progress_consumer(
@@ -298,6 +365,8 @@ fn wire_search(
     toast_overlay: &adw::ToastOverlay,
     client: Client,
     generation: Rc<Cell<u64>>,
+    sort: Rc<Cell<Sort>>,
+    last_results: Rc<RefCell<Vec<Show>>>,
 ) {
     let pending_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
@@ -312,6 +381,10 @@ fn wire_search(
         pending_timer,
         #[strong]
         generation,
+        #[strong]
+        sort,
+        #[strong]
+        last_results,
         move |entry| {
             if let Some(id) = pending_timer.borrow_mut().take() {
                 id.remove();
@@ -330,15 +403,18 @@ fn wire_search(
                     pending_timer,
                     #[strong]
                     generation,
+                    #[strong]
+                    sort,
+                    #[strong]
+                    last_results,
                     move || {
                         pending_timer.replace(None);
-                        let my_gen = generation.get().wrapping_add(1);
-                        generation.set(my_gen);
                         run_search(
                             client.clone(),
                             query.clone(),
-                            my_gen,
-                            generation.clone(),
+                            sort.get(),
+                            last_results.clone(),
+                            SearchGen::next(&generation),
                             results.clone(),
                             toast_overlay.clone(),
                         );
@@ -350,20 +426,45 @@ fn wire_search(
     ));
 }
 
+/// Identifies one in-flight search so a slow response can tell it's been
+/// superseded by a newer query — the latest generation wins.
+#[derive(Clone)]
+struct SearchGen {
+    counter: Rc<Cell<u64>>,
+    mine: u64,
+}
+
+impl SearchGen {
+    /// Bump the shared counter and capture the new value as this search's id.
+    fn next(counter: &Rc<Cell<u64>>) -> Self {
+        let mine = counter.get().wrapping_add(1);
+        counter.set(mine);
+        Self {
+            counter: Rc::clone(counter),
+            mine,
+        }
+    }
+
+    fn is_stale(&self) -> bool {
+        self.counter.get() != self.mine
+    }
+}
+
 /// Cold-start populate with the most recent entries (empty-query search).
 fn kick_initial_search(
     client: Client,
     generation: Rc<Cell<u64>>,
     results: Rc<ResultsPage>,
     toast_overlay: adw::ToastOverlay,
+    sort: Sort,
+    last_results: Rc<RefCell<Vec<Show>>>,
 ) {
-    let my_gen = generation.get().wrapping_add(1);
-    generation.set(my_gen);
     run_search(
         client,
         String::new(),
-        my_gen,
-        generation,
+        sort,
+        last_results,
+        SearchGen::next(&generation),
         results,
         toast_overlay,
     );
@@ -372,8 +473,9 @@ fn kick_initial_search(
 fn run_search(
     client: Client,
     query: String,
-    my_gen: u64,
-    generation: Rc<Cell<u64>>,
+    sort: Sort,
+    last_results: Rc<RefCell<Vec<Show>>>,
+    generation: SearchGen,
     results: Rc<ResultsPage>,
     toast_overlay: adw::ToastOverlay,
 ) {
@@ -385,11 +487,11 @@ fn run_search(
 
     glib::MainContext::default().spawn_local(async move {
         let q = query.clone();
-        let outcome = gio::spawn_blocking(move || client.search(&q, 0, RESULTS_PAGE_SIZE))
+        let outcome = gio::spawn_blocking(move || client.search(&q, 0, RESULTS_PAGE_SIZE, sort))
             .await
             .map_err(|_| anyhow::anyhow!("search worker panicked"));
 
-        if generation.get() != my_gen {
+        if generation.is_stale() {
             log::debug!("dropping stale search result for {query:?}");
             return;
         }
@@ -397,6 +499,7 @@ fn run_search(
         match outcome {
             Ok(Ok(shows)) => {
                 log::info!("search '{query}' -> {} results", shows.len());
+                last_results.borrow_mut().clone_from(&shows);
                 render_results(&results, &shows);
             }
             Ok(Err(e)) => {
