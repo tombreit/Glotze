@@ -15,6 +15,9 @@
 /repo
 *.flatpak
 
+# Output of build-aux/test-live.sh (per-run logs + screenshots).
+/test-live-out/
+
 # rustfmt backup files (when invoked with --backup).
 *.rs.bk
 
