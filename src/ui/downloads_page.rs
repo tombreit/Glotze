@@ -9,10 +9,8 @@ use gtk::gio;
 use crate::download::progress::{Progress, State};
 
 pub struct DownloadsPage {
-    root: gtk::ScrolledWindow,
-    list: gtk::ListBox,
-    status: adw::StatusPage,
-    stack: gtk::Stack,
+    root: gtk::Stack,
+    group: adw::PreferencesGroup,
     rows: Rc<RefCell<HashMap<u64, RowWidgets>>>,
 }
 
@@ -28,28 +26,10 @@ struct RowWidgets {
 
 impl DownloadsPage {
     pub fn new() -> Self {
-        let list = gtk::ListBox::builder()
-            .selection_mode(gtk::SelectionMode::None)
-            .css_classes(["boxed-list"])
-            .build();
-
+        // AdwPreferencesPage supplies the scrolled, clamped, margined column.
         let group = adw::PreferencesGroup::new();
-        group.add(&list);
-
-        let clamp = adw::Clamp::builder()
-            .maximum_size(800)
-            .tightening_threshold(600)
-            .margin_top(18)
-            .margin_bottom(18)
-            .margin_start(12)
-            .margin_end(12)
-            .child(&group)
-            .build();
-
-        let list_scroll = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&clamp)
-            .build();
+        let page = adw::PreferencesPage::new();
+        page.add(&group);
 
         let status = adw::StatusPage::builder()
             .icon_name("folder-download-symbolic")
@@ -57,34 +37,28 @@ impl DownloadsPage {
             .description("Pick an episode from the search page and choose a quality.")
             .build();
 
-        let stack = gtk::Stack::builder()
+        let root = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
             .build();
-        stack.add_named(&status, Some("empty"));
-        stack.add_named(&list_scroll, Some("list"));
-        stack.set_visible_child_name("empty");
-
-        let root = gtk::ScrolledWindow::builder().child(&stack).build();
-        root.set_propagate_natural_height(true);
+        root.add_named(&status, Some("empty"));
+        root.add_named(&page, Some("list"));
+        root.set_visible_child_name("empty");
 
         Self {
             root,
-            list,
-            status,
-            stack,
+            group,
             rows: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
-    pub fn widget(&self) -> &gtk::ScrolledWindow {
+    pub fn widget(&self) -> &gtk::Stack {
         &self.root
     }
 
     /// Apply a progress event from the download manager.
     pub fn apply(&self, p: Progress) {
         // Promote to "list" view as soon as any download appears.
-        self.stack.set_visible_child_name("list");
-        self.status.set_visible(false);
+        self.root.set_visible_child_name("list");
 
         let mut rows = self.rows.borrow_mut();
         let entry = rows.entry(p.id).or_insert_with(|| self.build_row(&p));
@@ -149,6 +123,9 @@ impl DownloadsPage {
         let bar = gtk::ProgressBar::builder()
             .fraction(0.0)
             .valign(gtk::Align::Center)
+            // A progress bar has no natural width; without a hint it collapses
+            // to a few pixels in a row suffix. This is genuine sizing, not the
+            // margin/indent guesswork we removed elsewhere.
             .width_request(140)
             .build();
         row.add_suffix(&bar);
@@ -184,7 +161,7 @@ impl DownloadsPage {
         });
         row.add_suffix(&open_btn);
 
-        self.list.append(&row);
+        self.group.add(&row);
         RowWidgets {
             row,
             bar,
