@@ -11,10 +11,9 @@ use crate::ui::row::{ResultRow, RowAction};
 type ActionHandler = Rc<RefCell<Option<Box<dyn Fn(Show, RowAction)>>>>;
 
 pub struct ResultsPage {
-    root: gtk::ScrolledWindow,
-    list: gtk::ListBox,
+    root: gtk::Stack,
+    group: adw::PreferencesGroup,
     status: adw::StatusPage,
-    stack: gtk::Stack,
     rows: Rc<RefCell<Vec<Rc<ResultRow>>>>,
     /// `download_id` -> `show_id`, for routing progress events back to the right row.
     download_routes: Rc<RefCell<HashMap<u64, String>>>,
@@ -26,31 +25,11 @@ pub struct ResultsPage {
 
 impl ResultsPage {
     pub fn new() -> Rc<Self> {
-        let list = gtk::ListBox::builder()
-            .selection_mode(gtk::SelectionMode::None)
-            .css_classes(["boxed-list"])
-            .build();
-
+        // AdwPreferencesPage supplies the scrolled, clamped, margined column —
+        // we just drop a group of rows into it.
         let group = adw::PreferencesGroup::new();
-        group.add(&list);
-
-        let clamp = adw::Clamp::builder()
-            .maximum_size(820)
-            .tightening_threshold(620)
-            // The search bar above contributes a 12px bottom margin, so 6 here
-            // keeps the at-rest gap at the usual 18px while leaving a 12px gap
-            // once the list is scrolled under the (fixed) search bar.
-            .margin_top(6)
-            .margin_bottom(18)
-            .margin_start(12)
-            .margin_end(12)
-            .child(&group)
-            .build();
-
-        let list_scroll = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&clamp)
-            .build();
+        let page = adw::PreferencesPage::new();
+        page.add(&group);
 
         let status = adw::StatusPage::builder()
             .icon_name("system-search-symbolic")
@@ -58,49 +37,25 @@ impl ResultsPage {
             .description("Type into the search field above to find episodes.")
             .build();
 
-        let stack = gtk::Stack::builder()
+        let root = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
             .build();
-        stack.add_named(&status, Some("empty"));
-        stack.add_named(&list_scroll, Some("list"));
-        stack.set_visible_child_name("empty");
+        root.add_named(&status, Some("empty"));
+        root.add_named(&page, Some("list"));
+        root.set_visible_child_name("empty");
 
-        let root = gtk::ScrolledWindow::builder().child(&stack).build();
-        root.set_propagate_natural_height(true);
-
-        let page = Rc::new(Self {
+        Rc::new(Self {
             root,
-            list,
+            group,
             status,
-            stack,
             rows: Rc::new(RefCell::new(Vec::new())),
             download_routes: Rc::new(RefCell::new(HashMap::new())),
             running: Rc::new(RefCell::new(HashMap::new())),
             on_action: Rc::new(RefCell::new(None)),
-        });
-
-        // Wire row activation: toggle the expansion of the activated row and
-        // collapse all others (single-expansion model).
-        let rows_ref = Rc::clone(&page.rows);
-        page.list.connect_row_activated(move |_, activated| {
-            let idx = activated.index();
-            if idx < 0 {
-                return;
-            }
-            let rows = rows_ref.borrow();
-            let Some(target) = rows.get(idx as usize) else {
-                return;
-            };
-            let expand = !target.is_expanded();
-            for (i, r) in rows.iter().enumerate() {
-                r.set_expanded(expand && i == idx as usize);
-            }
-        });
-
-        page
+        })
     }
 
-    pub fn widget(&self) -> &gtk::ScrolledWindow {
+    pub fn widget(&self) -> &gtk::Stack {
         &self.root
     }
 
@@ -108,26 +63,28 @@ impl ResultsPage {
         self.status.set_title(title);
         self.status.set_description(Some(description));
         self.clear_spinner();
-        self.stack.set_visible_child_name("empty");
+        self.root.set_visible_child_name("empty");
         self.clear_rows();
     }
 
-    /// Like `show_empty`, but renders an `AdwSpinnerPaintable` in the status
-    /// page's icon slot so the user sees the app is actively waiting on
-    /// something rather than just sitting idle.
+    /// Like `show_empty`, but puts an `AdwSpinner` in the status page so the
+    /// user sees the app is actively waiting on something. Unlike the previous
+    /// `AdwSpinnerPaintable` approach, the spinner widget only animates once
+    /// it's mapped, so nothing renders before the window is presented.
     pub fn show_loading(&self, title: &str, description: &str) {
         self.status.set_title(title);
         self.status.set_description(Some(description));
         self.status.set_icon_name(None);
-        let spinner = adw::SpinnerPaintable::new(Some(&self.status));
-        self.status.set_paintable(Some(&spinner));
-        self.stack.set_visible_child_name("empty");
+        let spinner = adw::Spinner::new();
+        spinner.set_size_request(32, 32);
+        self.status.set_child(Some(&spinner));
+        self.root.set_visible_child_name("empty");
         self.clear_rows();
     }
 
     fn clear_spinner(&self) {
-        // Drop the spinner paintable and restore the default search icon.
-        self.status.set_paintable(None::<&gtk::gdk::Paintable>);
+        // Drop the spinner widget and restore the default search icon.
+        self.status.set_child(None::<&gtk::Widget>);
         self.status.set_icon_name(Some("system-search-symbolic"));
     }
 
@@ -152,17 +109,35 @@ impl ResultsPage {
                 }
             });
 
-            self.list.append(result_row.widget());
+            // Single-expansion model: expanding one row collapses the others.
+            // Collapsing a row never re-expands anything, so this can't loop.
+            let rows_ref = Rc::clone(&self.rows);
+            result_row.widget().connect_expanded_notify(move |exp| {
+                if !exp.is_expanded() {
+                    return;
+                }
+                let others: Vec<Rc<ResultRow>> = rows_ref
+                    .borrow()
+                    .iter()
+                    .filter(|r| r.widget() != exp)
+                    .cloned()
+                    .collect();
+                for r in others {
+                    r.set_expanded(false);
+                }
+            });
+
+            self.group.add(result_row.widget());
             rows.push(result_row);
         }
         drop(rows);
 
-        self.stack.set_visible_child_name("list");
+        self.root.set_visible_child_name("list");
     }
 
     fn clear_rows(&self) {
-        while let Some(child) = self.list.first_child() {
-            self.list.remove(&child);
+        for r in self.rows.borrow().iter() {
+            self.group.remove(r.widget());
         }
         self.rows.borrow_mut().clear();
         self.download_routes.borrow_mut().clear();

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gtk::glib;
 
 use crate::api::models::{Quality, Show};
 use crate::download::progress::State;
@@ -28,18 +29,18 @@ enum ActionState {
 
 type ActionHandler = Rc<RefCell<Option<Box<dyn Fn(RowAction)>>>>;
 
-/// A search-result row. Holds widget references so we can mutate the header,
-/// expansion state, progress, and action button without rebuilding the row.
+/// A search-result row built on `AdwExpanderRow`: the logo is a prefix, the
+/// date/time and terminal-state status icon are suffixes, and the details
+/// (description, link, quality picker, download button, progress) live in the
+/// expander's revealed area. libadwaita supplies the chevron, the reveal
+/// animation, and all the spacing/indentation.
 pub struct ResultRow {
     show: Show,
-    row: gtk::ListBoxRow,
-    revealer: gtk::Revealer,
-    chevron: gtk::Image,
+    expander: adw::ExpanderRow,
+    /// The unstyled `topic · channel · duration` subtitle, restored after a
+    /// transient failure message has been shown in its place.
+    subtitle_normal: String,
     status_icon: gtk::Image,
-    /// Stack switching between the normal `topic · channel · duration` row
-    /// and a single-label failure message.
-    subtitle_stack: gtk::Stack,
-    subtitle_failed_label: gtk::Label,
 
     quality_group: adw::ToggleGroup,
     action_button: gtk::Button,
@@ -54,62 +55,27 @@ pub struct ResultRow {
 
 impl ResultRow {
     pub fn new(show: &Show) -> Rc<Self> {
-        let outer = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        outer.set_margin_top(12);
-        outer.set_margin_bottom(12);
-        outer.set_margin_start(12);
-        outer.set_margin_end(12);
+        let expander = adw::ExpanderRow::new();
+        expander.set_title(&glib::markup_escape_text(&show.title));
+        expander.set_title_lines(1);
 
-        // ─── Header ───────────────────────────────────────────────────
-        let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-        header.set_valign(gtk::Align::Center);
+        let subtitle_normal = build_subtitle(show);
+        if !subtitle_normal.is_empty() {
+            expander.set_subtitle(&subtitle_normal);
+            expander.set_subtitle_lines(1);
+        }
 
+        // ─── Prefix: channel logo ─────────────────────────────────────
         let logo = channel_logo(&show.channel);
-        logo.set_valign(gtk::Align::Center);
         if !show.channel.is_empty() {
             logo.set_tooltip_text(Some(&show.channel));
         }
-        header.append(&logo);
+        expander.add_prefix(&logo);
 
-        let centre = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        centre.set_hexpand(true);
-        centre.set_valign(gtk::Align::Center);
-
-        let title_label = gtk::Label::builder()
-            .label(&show.title)
-            .css_classes(["heading"])
-            .halign(gtk::Align::Start)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .xalign(0.0)
-            .single_line_mode(true)
-            .build();
-        centre.append(&title_label);
-
-        // Subtitle: one Box of labels with their own tooltips, plus a
-        // failure-mode label, both inside a Stack.
-        let subtitle_normal = build_subtitle_box(show);
-        let subtitle_failed_label = gtk::Label::builder()
-            .css_classes(["caption", "error"])
-            .halign(gtk::Align::Start)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .xalign(0.0)
-            .single_line_mode(true)
-            .build();
-        let subtitle_stack = gtk::Stack::builder()
-            .transition_type(gtk::StackTransitionType::Crossfade)
-            .transition_duration(120)
-            .build();
-        subtitle_stack.add_named(&subtitle_normal, Some("normal"));
-        subtitle_stack.add_named(&subtitle_failed_label, Some("failed"));
-        subtitle_stack.set_visible_child_name("normal");
-        centre.append(&subtitle_stack);
-
-        header.append(&centre);
-
+        // ─── Suffixes: broadcast date/time, then a status icon ────────
         if let Some(ts) = show.timestamp.filter(|t| *t > 0) {
             let right = gtk::Box::new(gtk::Orientation::Vertical, 2);
             right.set_valign(gtk::Align::Center);
-            right.set_halign(gtk::Align::End);
 
             let date_label = gtk::Label::builder()
                 .label(format_date_short(ts))
@@ -125,38 +91,18 @@ impl ResultRow {
                 .build();
             right.append(&date_label);
             right.append(&time_label);
-            header.append(&right);
+            expander.add_suffix(&right);
         }
 
-        // Status icon: hidden by default. Only appears on terminal states
-        // (Done = ✓, Failed = ⚠). The download glyph itself lives on the
-        // action button now.
+        // Status icon: hidden by default, shown on terminal states
+        // (Done = ✓, Failed = ⚠).
         let status_icon = gtk::Image::new();
         status_icon.set_valign(gtk::Align::Center);
-        status_icon.set_pixel_size(16);
         status_icon.set_visible(false);
-        header.append(&status_icon);
+        expander.add_suffix(&status_icon);
 
-        let chevron = gtk::Image::from_icon_name("pan-end-symbolic");
-        chevron.set_valign(gtk::Align::Center);
-        chevron.set_pixel_size(16);
-        chevron.add_css_class("dim-label");
-        chevron.set_tooltip_text(Some("Show details"));
-        header.append(&chevron);
-
-        outer.append(&header);
-
-        // ─── Revealer body ────────────────────────────────────────────
-        let revealer = gtk::Revealer::builder()
-            .transition_type(gtk::RevealerTransitionType::SlideDown)
-            .transition_duration(180)
-            .reveal_child(false)
-            .build();
-
+        // ─── Revealed body ────────────────────────────────────────────
         let body = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        body.set_margin_top(12);
-        body.set_margin_start(52);
-        body.set_margin_end(8);
 
         // 1. Description.
         if let Some(desc) = show.description.as_deref().filter(|d| !d.is_empty()) {
@@ -165,9 +111,9 @@ impl ResultRow {
                 .wrap(true)
                 .wrap_mode(gtk::pango::WrapMode::WordChar)
                 .xalign(0.0)
+                .halign(gtk::Align::Start)
                 .selectable(true)
                 .build();
-            desc_label.set_halign(gtk::Align::Start);
             body.append(&desc_label);
         }
 
@@ -245,23 +191,20 @@ impl ResultRow {
         progress_box.set_visible(false);
         body.append(&progress_box);
 
-        revealer.set_child(Some(&body));
-        outer.append(&revealer);
-
-        let row = gtk::ListBoxRow::builder()
-            .child(&outer)
-            .activatable(true)
+        // The body is a single, non-activatable row inside the expander; the
+        // expander indents and pads it for us.
+        let body_row = gtk::ListBoxRow::builder()
+            .child(&body)
+            .activatable(false)
             .selectable(false)
             .build();
+        expander.add_row(&body_row);
 
         let this = Rc::new(Self {
             show: show.clone(),
-            row,
-            revealer,
-            chevron,
+            expander,
+            subtitle_normal,
             status_icon,
-            subtitle_stack,
-            subtitle_failed_label,
             quality_group,
             action_button,
             action_content,
@@ -285,25 +228,16 @@ impl ResultRow {
         this
     }
 
-    pub fn widget(&self) -> &gtk::ListBoxRow {
-        &self.row
+    pub fn widget(&self) -> &adw::ExpanderRow {
+        &self.expander
     }
 
     pub fn show_id(&self) -> Option<&str> {
         self.show.id.as_deref()
     }
 
-    pub fn is_expanded(&self) -> bool {
-        self.revealer.reveals_child()
-    }
-
     pub fn set_expanded(&self, expanded: bool) {
-        self.revealer.set_reveal_child(expanded);
-        self.chevron.set_icon_name(Some(if expanded {
-            "pan-down-symbolic"
-        } else {
-            "pan-end-symbolic"
-        }));
+        self.expander.set_expanded(expanded);
     }
 
     pub fn connect_action<F>(&self, callback: F)
@@ -387,6 +321,12 @@ impl ResultRow {
         self.quality_group.set_sensitive(sensitive);
     }
 
+    /// Restore the normal `topic · channel · duration` subtitle after it was
+    /// replaced by a failure message.
+    fn restore_subtitle(&self) {
+        self.expander.set_subtitle(&self.subtitle_normal);
+    }
+
     pub fn apply_progress(&self, state: &State) {
         match state {
             State::Running {
@@ -404,7 +344,7 @@ impl ResultRow {
                     self.percent_label.set_text("");
                 }
                 self.set_action_state(ActionState::Downloading);
-                self.subtitle_stack.set_visible_child_name("normal");
+                self.restore_subtitle();
                 // Header status icon stays hidden during a download.
                 self.status_icon.set_visible(false);
             }
@@ -412,7 +352,7 @@ impl ResultRow {
                 self.progress_bar.set_fraction(1.0);
                 self.progress_box.set_visible(false);
                 self.set_action_state(ActionState::Done(path.clone()));
-                self.subtitle_stack.set_visible_child_name("normal");
+                self.restore_subtitle();
                 self.status_icon.set_icon_name(Some("emblem-ok-symbolic"));
                 self.status_icon.set_tooltip_text(Some("Download complete"));
                 self.status_icon.remove_css_class("error");
@@ -422,9 +362,10 @@ impl ResultRow {
             State::Failed { reason } => {
                 self.progress_box.set_visible(false);
                 self.set_action_state(ActionState::Failed);
-                self.subtitle_failed_label
-                    .set_text(&format!("Download failed: {reason}"));
-                self.subtitle_stack.set_visible_child_name("failed");
+                self.expander
+                    .set_subtitle(&glib::markup_escape_text(&format!(
+                        "Download failed: {reason}"
+                    )));
                 self.status_icon
                     .set_icon_name(Some("dialog-error-symbolic"));
                 self.status_icon
@@ -437,65 +378,24 @@ impl ResultRow {
                 self.progress_box.set_visible(false);
                 self.progress_bar.set_fraction(0.0);
                 self.set_action_state(ActionState::Idle);
-                self.subtitle_stack.set_visible_child_name("normal");
+                self.restore_subtitle();
                 self.status_icon.set_visible(false);
             }
         }
     }
 }
 
-/// Build the "topic · channel · duration" subtitle as a horizontal Box where
-/// each metadata token is its own Label with a tooltip explaining what it is.
-fn build_subtitle_box(show: &Show) -> gtk::Box {
-    let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-    row.set_halign(gtk::Align::Start);
-
-    let mut needs_separator = false;
-    let mk_dot = || {
-        gtk::Label::builder()
-            .label("·")
-            .css_classes(["caption", "dim-label"])
-            .build()
-    };
-
+/// Build the `topic · channel · duration` subtitle as a single escaped string.
+fn build_subtitle(show: &Show) -> String {
+    let mut parts: Vec<String> = Vec::new();
     if !show.topic.is_empty() && show.topic != show.title {
-        let lbl = gtk::Label::builder()
-            .label(&show.topic)
-            .css_classes(["caption", "dim-label"])
-            .tooltip_text("Show or series this episode belongs to")
-            .halign(gtk::Align::Start)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .hexpand(true)
-            .xalign(0.0)
-            .build();
-        row.append(&lbl);
-        needs_separator = true;
+        parts.push(glib::markup_escape_text(&show.topic).to_string());
     }
-
     if !show.channel.is_empty() {
-        if needs_separator {
-            row.append(&mk_dot());
-        }
-        let lbl = gtk::Label::builder()
-            .label(&show.channel)
-            .css_classes(["caption", "dim-label"])
-            .tooltip_text("Broadcaster")
-            .build();
-        row.append(&lbl);
-        needs_separator = true;
+        parts.push(glib::markup_escape_text(&show.channel).to_string());
     }
-
     if let Some(d) = show.duration.filter(|d| *d > 0) {
-        if needs_separator {
-            row.append(&mk_dot());
-        }
-        let lbl = gtk::Label::builder()
-            .label(format_duration(d))
-            .css_classes(["caption", "dim-label", "numeric"])
-            .tooltip_text("Length of the video (h:mm:ss or mm:ss)")
-            .build();
-        row.append(&lbl);
+        parts.push(glib::markup_escape_text(&format_duration(d)).to_string());
     }
-
-    row
+    parts.join(" · ")
 }

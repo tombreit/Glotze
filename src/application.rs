@@ -81,7 +81,7 @@ fn show_about(app: &adw::Application) {
             "Loupe https://gitlab.gnome.org/GNOME/loupe",
             "Bustle https://gitlab.gnome.org/World/bustle",
             "Gitte https://codeberg.org/ckruse/Gitte",
-            "App icon: TestChart, CC0 https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
+            "App icon: original test-card rendition, inspired by TestChart, CC0 https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
         ],
     );
 
