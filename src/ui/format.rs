@@ -1,14 +1,18 @@
 use jiff::{Timestamp, Zoned, tz::TimeZone};
 
-/// "30:30" for under an hour, "1:05:00" otherwise.
+/// Compact, unit-tagged duration for the result columns: "31m" under an hour,
+/// "1h 29m" otherwise (and "2h" when the minutes are zero).
 pub fn format_duration(seconds: u64) -> String {
     let h = seconds / 3600;
     let m = (seconds % 3600) / 60;
-    let s = seconds % 60;
     if h > 0 {
-        format!("{h}:{m:02}:{s:02}")
+        if m > 0 {
+            format!("{h}h {m}m")
+        } else {
+            format!("{h}h")
+        }
     } else {
-        format!("{m}:{s:02}")
+        format!("{m}m")
     }
 }
 

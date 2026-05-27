@@ -35,11 +35,11 @@ impl AppWindow {
             .placeholder_text("Search title or topic…")
             .hexpand(true)
             .build();
-        // Fixed search bar above the scrolling results. Clamped to roughly the
-        // width AdwPreferencesPage gives its content, with uniform padding so
-        // the entry isn't edge-to-edge.
+        // Fixed search bar above the scrolling results. Clamped to the same
+        // width as the results list below it, with uniform padding so the entry
+        // isn't edge-to-edge.
         let search_clamp = adw::Clamp::builder()
-            .maximum_size(600)
+            .maximum_size(860)
             .margin_top(12)
             .margin_bottom(12)
             .margin_start(12)
