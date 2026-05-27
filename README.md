@@ -157,6 +157,60 @@ glotze/
 
 ---
 
+## MediathekViewWeb API
+
+Glotze talks to a single endpoint, `https://mediathekviewweb.de/api/query`. It's a
+`POST` whose body is JSON but — quirk of the service — must be sent with
+`Content-Type: text/plain`. Free-text queries match `title` and `topic`; an empty
+`queries` array returns the most recent broadcasts (the cold-start view).
+
+Request body Glotze sends (see `src/api/mod.rs`):
+
+```jsonc
+{
+  "queries": [{ "fields": ["title", "topic"], "query": "Tatort" }],
+  "sortBy": "timestamp",   // or "duration" — see the Sort enum
+  "sortOrder": "desc",     // or "asc"
+  "future": false,         // exclude not-yet-aired entries
+  "offset": 0,
+  "size": 30
+}
+```
+
+Response (truncated to one result; `result.results[]` deserializes into `Show`):
+
+```jsonc
+{
+  "result": {
+    "results": [
+      {
+        "channel": "SWR",
+        "topic": "Tatort",
+        "title": "Die große Angst",
+        "description": "Mitten in den Schwarzwald …",
+        "timestamp": 1779912000,
+        "duration": 5350,
+        "size": 1638924288,
+        "url_website": "https://www.ardmediathek.de/video/Y3JpZDov…",
+        "url_subtitle": "https://api.ardmediathek.de/player-service/subtitle/…",
+        "url_video": "https://swr-pd.ard-mcdn.de/swr/video/tatort/2212490.avc-720.mp4",
+        "url_video_low": "https://…/2212490.avc-360.mp4",
+        "url_video_hd": "https://…/2212490.avc-1080.mp4",
+        "filmlisteTimestamp": 1779896100,
+        "id": "bW40B5S0C5jiyUTaa9Jg25Ukrif65Mst9kInYpcS8Zg="
+      }
+    ],
+    "queryInfo": { "resultCount": 1, "totalResults": 1822, "totalEntries": 696752 }
+  },
+  "err": null
+}
+```
+
+`url_video` is the medium-quality progressive MP4; `_low`/`_hd` are the other two
+rungs. Glotze skips HLS (`.m3u8`) variants — it hands you a file, not a stream.
+
+---
+
 ## Architecture
 
 ```
