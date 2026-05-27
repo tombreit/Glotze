@@ -6,13 +6,16 @@ use adw::prelude::*;
 
 use crate::api::models::Show;
 use crate::download::progress::Progress;
-use crate::ui::row::{ResultRow, RowAction};
+use crate::ui::row::{ColumnGroups, ResultRow, RowAction};
 
 type ActionHandler = Rc<RefCell<Option<Box<dyn Fn(Show, RowAction)>>>>;
 
 pub struct ResultsPage {
     root: gtk::Stack,
-    group: adw::PreferencesGroup,
+    list: gtk::ListBox,
+    /// Column `SizeGroup`s for the currently-shown rows; kept alive here for as
+    /// long as those rows live (a `SizeGroup` drops with its last handle).
+    col_groups: RefCell<Option<ColumnGroups>>,
     status: adw::StatusPage,
     rows: Rc<RefCell<Vec<Rc<ResultRow>>>>,
     /// `download_id` -> `show_id`, for routing progress events back to the right row.
@@ -25,11 +28,28 @@ pub struct ResultsPage {
 
 impl ResultsPage {
     pub fn new() -> Rc<Self> {
-        // AdwPreferencesPage supplies the scrolled, clamped, margined column —
-        // we just drop a group of rows into it.
-        let group = adw::PreferencesGroup::new();
-        let page = adw::PreferencesPage::new();
-        page.add(&group);
+        // A standalone boxed list: `.boxed-list` gives the rounded card, the
+        // Clamp keeps it at a comfortable reading width, and the ScrolledWindow
+        // makes it scroll. `selection_mode = None` skips the selection
+        // highlight while still letting a row click toggle the expander.
+        let list = gtk::ListBox::builder()
+            .selection_mode(gtk::SelectionMode::None)
+            .valign(gtk::Align::Start)
+            .css_classes(["boxed-list"])
+            .build();
+        let clamp = adw::Clamp::builder()
+            .maximum_size(860)
+            .margin_top(12)
+            .margin_bottom(18)
+            .margin_start(12)
+            .margin_end(12)
+            .child(&list)
+            .build();
+        let scroller = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vexpand(true)
+            .child(&clamp)
+            .build();
 
         let status = adw::StatusPage::builder()
             .icon_name("system-search-symbolic")
@@ -41,12 +61,13 @@ impl ResultsPage {
             .transition_type(gtk::StackTransitionType::Crossfade)
             .build();
         root.add_named(&status, Some("empty"));
-        root.add_named(&page, Some("list"));
+        root.add_named(&scroller, Some("list"));
         root.set_visible_child_name("empty");
 
         Rc::new(Self {
             root,
-            group,
+            list,
+            col_groups: RefCell::new(None),
             status,
             rows: Rc::new(RefCell::new(Vec::new())),
             download_routes: Rc::new(RefCell::new(HashMap::new())),
@@ -97,9 +118,13 @@ impl ResultsPage {
             return;
         }
 
+        // Fresh column groups for this batch of rows; stored so they outlive
+        // this call (the rows reference them until the next `clear_rows`).
+        let groups = ColumnGroups::new();
+
         let mut rows = self.rows.borrow_mut();
         for show in shows {
-            let result_row = ResultRow::new(show);
+            let result_row = ResultRow::new(show, &groups);
 
             let on_action = Rc::clone(&self.on_action);
             let show_clone = show.clone();
@@ -127,19 +152,21 @@ impl ResultsPage {
                 }
             });
 
-            self.group.add(result_row.widget());
+            self.list.append(result_row.widget());
             rows.push(result_row);
         }
         drop(rows);
+        *self.col_groups.borrow_mut() = Some(groups);
 
         self.root.set_visible_child_name("list");
     }
 
     fn clear_rows(&self) {
         for r in self.rows.borrow().iter() {
-            self.group.remove(r.widget());
+            self.list.remove(r.widget());
         }
         self.rows.borrow_mut().clear();
+        *self.col_groups.borrow_mut() = None;
         self.download_routes.borrow_mut().clear();
         self.running.borrow_mut().clear();
     }

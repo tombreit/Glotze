@@ -10,7 +10,7 @@ use crate::download::progress::{Progress, State};
 
 pub struct DownloadsPage {
     root: gtk::Stack,
-    group: adw::PreferencesGroup,
+    list: gtk::ListBox,
     rows: Rc<RefCell<HashMap<u64, RowWidgets>>>,
 }
 
@@ -26,10 +26,26 @@ struct RowWidgets {
 
 impl DownloadsPage {
     pub fn new() -> Self {
-        // AdwPreferencesPage supplies the scrolled, clamped, margined column.
-        let group = adw::PreferencesGroup::new();
-        let page = adw::PreferencesPage::new();
-        page.add(&group);
+        // Same standalone boxed-list host as the results page: a `.boxed-list`
+        // ListBox in a width-clamped, scrolling column.
+        let list = gtk::ListBox::builder()
+            .selection_mode(gtk::SelectionMode::None)
+            .valign(gtk::Align::Start)
+            .css_classes(["boxed-list"])
+            .build();
+        let clamp = adw::Clamp::builder()
+            .maximum_size(860)
+            .margin_top(12)
+            .margin_bottom(18)
+            .margin_start(12)
+            .margin_end(12)
+            .child(&list)
+            .build();
+        let scroller = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vexpand(true)
+            .child(&clamp)
+            .build();
 
         let status = adw::StatusPage::builder()
             .icon_name("folder-download-symbolic")
@@ -41,12 +57,12 @@ impl DownloadsPage {
             .transition_type(gtk::StackTransitionType::Crossfade)
             .build();
         root.add_named(&status, Some("empty"));
-        root.add_named(&page, Some("list"));
+        root.add_named(&scroller, Some("list"));
         root.set_visible_child_name("empty");
 
         Self {
             root,
-            group,
+            list,
             rows: Rc::new(RefCell::new(HashMap::new())),
         }
     }
@@ -161,7 +177,7 @@ impl DownloadsPage {
         });
         row.add_suffix(&open_btn);
 
-        self.group.add(&row);
+        self.list.append(&row);
         RowWidgets {
             row,
             bar,
