@@ -6,6 +6,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk::gio;
 
+use crate::download::download_dir_display;
 use crate::download::progress::{Progress, State};
 
 pub struct DownloadsPage {
@@ -50,8 +51,20 @@ impl DownloadsPage {
         let status = adw::StatusPage::builder()
             .icon_name("folder-download-symbolic")
             .title("No downloads yet")
-            .description("Pick an episode from the search page and choose a quality.")
+            .description(format!(
+                "Pick an episode on the Search page and choose a quality. \
+                 Downloads are saved to {}.",
+                download_dir_display()
+            ))
             .build();
+        // Resolves against the window-level action, so no ViewStack plumbing.
+        let go_search = gtk::Button::builder()
+            .label("Search a Mediathek")
+            .css_classes(["pill", "suggested-action"])
+            .halign(gtk::Align::Center)
+            .action_name("win.show-search")
+            .build();
+        status.set_child(Some(&go_search));
 
         let root = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
