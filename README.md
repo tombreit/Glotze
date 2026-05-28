@@ -18,11 +18,6 @@ Each [GitHub release](https://github.com/tombreit/Glotze/releases) attaches a
 you can fetch the most recent build without visiting the page:
 
 ```sh
-# One-time: make sure the Flathub remote is configured — the bundle pulls its
-# GNOME runtime from there, and a single-file install won't resolve it on its own.
-flatpak remote-add --user --if-not-exists \
-  flathub https://flathub.org/repo/flathub.flatpakrepo
-
 # Download, install, run.
 curl -LO https://github.com/tombreit/Glotze/releases/latest/download/glotze.flatpak
 flatpak install --user ./glotze.flatpak
@@ -49,7 +44,7 @@ cargo run
 
 Type a query (e.g. `Tagesschau`) into the search bar. After ~300 ms a list
 appears. Click a row → choose a quality → switch to **Downloads** to see the
-progress bar. Files land in your XDG `Videos` directory (`~/Videos`).
+progress bar. Files land in your XDG `Videos` directory (`~/Videos/Glotze`).
 
 ### Code quality
 
@@ -274,15 +269,13 @@ new to GTK / GNOME / Rust on the desktop, these are the load-bearing pieces:
 - **libadwaita patterns used here**:
   - `AdwToolbarView` instead of a plain `GtkBox` for chrome layout
   - `AdwViewStack` + `AdwViewSwitcher` for the search/downloads switch
-  - `AdwPreferencesGroup` + `boxed-list` ListBox for the rounded result list
+  - `GtkListBox` with the `.boxed-list` style class for the rounded result list
   - `AdwToggleGroup` for the per-row video quality picker
   - `AdwAboutDialog` for the About entry in the hamburger menu
   - `AdwToastOverlay` + `AdwToast` for transient feedback
 
 - **GResource is intentionally absent.** UI is built in Rust code, with no
   Blueprint or `.ui` templates yet, so every widget is visible in the source.
-  This is fine at this scale; for a larger app you'd compile UI XML into a
-  resource bundle.
 
 The
 [`gtk4-rs` book](https://gtk-rs.org/gtk4-rs/stable/latest/book/) and the
