@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Glotze
 GenericName=Mediathek Browser
-Comment=Search and download videos from German public broadcaster Mediatheken
+Comment=Search and download videos from public broadcaster Mediatheken (DACH region)
 Exec=glotze
 Icon=io.github.tombreit.Glotze
 Type=Application

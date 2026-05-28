@@ -65,8 +65,8 @@ fn show_about(app: &adw::Application) {
              full text.",
         )
         .comments(
-            "Search and download episodes from German public broadcaster \
-             Mediatheken (ARD, ZDF, 3sat, arte, …) via the MediathekViewWeb API.\n\n\
+            "Search and download episodes from public broadcaster \
+             Mediatheken (DACH region), eg. ARD, ZDF, 3sat, arte,… via the MediathekViewWeb API.\n\n\
              “Glotze” is affectionate German slang for a TV set — roughly “the \
              box” or “the telly”.",
         )
