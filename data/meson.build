@@ -1,12 +1,25 @@
 # Shipped artifacts: launcher, AppStream metadata, icon, license, channel logos.
+#
+# The .desktop and .metainfo.xml files are generated from .in templates by
+# i18n.merge_file, which folds in any translations found in ../po based on the
+# matching msgid in the .pot/.po catalogues. Plain English keys (Name=, Comment=,
+# <name>, <summary>, …) are picked up automatically — no `_` underscore prefix
+# needed.
 
-install_data(
-  application_id + '.desktop',
+desktop_file = i18n.merge_file(
+  input:       application_id + '.desktop.in',
+  output:      application_id + '.desktop',
+  type:        'desktop',
+  po_dir:      meson.project_source_root() / 'po',
+  install:     true,
   install_dir: datadir / 'applications',
 )
 
-install_data(
-  application_id + '.metainfo.xml',
+appstream_file = i18n.merge_file(
+  input:       application_id + '.metainfo.xml.in',
+  output:      application_id + '.metainfo.xml',
+  po_dir:      meson.project_source_root() / 'po',
+  install:     true,
   install_dir: datadir / 'metainfo',
 )
 
@@ -33,7 +46,7 @@ if desktop_file_validate.found()
   test(
     'validate-desktop',
     desktop_file_validate,
-    args: [meson.current_source_dir() / application_id + '.desktop'],
+    args: [desktop_file],
   )
 endif
 
@@ -42,9 +55,6 @@ if appstreamcli.found()
   test(
     'validate-metainfo',
     appstreamcli,
-    args: [
-      'validate', '--no-net', '--explain',
-      meson.current_source_dir() / application_id + '.metainfo.xml',
-    ],
+    args: ['validate', '--no-net', '--explain', appstream_file],
   )
 endif

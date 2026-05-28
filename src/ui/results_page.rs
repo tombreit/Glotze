@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gettextrs::gettext;
 
 use crate::api::models::Show;
 use crate::download::progress::Progress;
@@ -53,8 +54,10 @@ impl ResultsPage {
 
         let status = adw::StatusPage::builder()
             .icon_name("system-search-symbolic")
-            .title("Search a Mediathek")
-            .description("Type into the search field above to find episodes.")
+            .title(gettext("Search a Mediathek"))
+            .description(gettext(
+                "Type into the search field above to find episodes.",
+            ))
             .build();
 
         let root = gtk::Stack::builder()
@@ -114,7 +117,10 @@ impl ResultsPage {
         self.clear_rows();
 
         if shows.is_empty() {
-            self.show_empty("No results", "No episodes matched your search.");
+            self.show_empty(
+                &gettext("No results"),
+                &gettext("No episodes matched your search."),
+            );
             return;
         }
 

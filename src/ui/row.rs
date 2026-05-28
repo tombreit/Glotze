@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::api::models::{Quality, Show};
@@ -108,7 +109,7 @@ impl ResultRow {
             .halign(gtk::Align::End)
             .xalign(1.0)
             .valign(gtk::Align::Center)
-            .tooltip_text("Broadcast date")
+            .tooltip_text(gettext("Broadcast date"))
             .build();
         let time_label = gtk::Label::builder()
             .label(ts.map(format_time).unwrap_or_default())
@@ -116,7 +117,7 @@ impl ResultRow {
             .halign(gtk::Align::End)
             .xalign(1.0)
             .valign(gtk::Align::Center)
-            .tooltip_text("Broadcast start time (Europe/Berlin)")
+            .tooltip_text(gettext("Broadcast start time (Europe/Berlin)"))
             .build();
         let duration_label = gtk::Label::builder()
             .label(
@@ -129,7 +130,7 @@ impl ResultRow {
             .halign(gtk::Align::End)
             .xalign(1.0)
             .valign(gtk::Align::Center)
-            .tooltip_text("Duration")
+            .tooltip_text(gettext("Duration"))
             .build();
         cols.date.add_widget(&date_label);
         cols.time.add_widget(&time_label);
@@ -180,12 +181,12 @@ impl ResultRow {
         if let Some(url) = show.url_website.as_deref().filter(|u| !u.is_empty()) {
             let content = adw::ButtonContent::builder()
                 .icon_name("adw-external-link-symbolic")
-                .label("Website")
+                .label(gettext("Website"))
                 .build();
             let website = gtk::Button::builder()
                 .child(&content)
                 .css_classes(["flat"])
-                .tooltip_text("Open this episode on the broadcaster's page")
+                .tooltip_text(gettext("Open this episode on the broadcaster's page"))
                 .build();
             let uri = url.to_string();
             website.connect_clicked(move |btn| {
@@ -206,16 +207,19 @@ impl ResultRow {
 
         let quality_group = adw::ToggleGroup::new();
         quality_group.add_css_class("round");
-        quality_group.set_tooltip_text(Some("Choose video quality"));
+        quality_group.set_tooltip_text(Some(&gettext("Choose video quality")));
         for (quality, name, label) in [
-            (Quality::Low, "low", "Low"),
-            (Quality::Medium, "medium", "Medium"),
-            (Quality::High, "high", "HD"),
+            (Quality::Low, "low", gettext("Low")),
+            (Quality::Medium, "medium", gettext("Medium")),
+            // "HD" is a worldwide technical marker, kept untranslated even in
+            // languages with a native term — matches the rest of the GNOME
+            // video ecosystem (Showtime, Decibels).
+            (Quality::High, "high", "HD".to_string()),
         ] {
             if show.url_for(quality).is_none() {
                 continue;
             }
-            let toggle = adw::Toggle::builder().name(name).label(label).build();
+            let toggle = adw::Toggle::builder().name(name).label(&label).build();
             quality_group.add(toggle);
         }
         for preferred in ["high", "medium", "low"] {
@@ -232,7 +236,7 @@ impl ResultRow {
         // Action button: icon + label via adw::ButtonContent.
         let action_content = adw::ButtonContent::builder()
             .icon_name("folder-download-symbolic")
-            .label("Download")
+            .label(gettext("Download"))
             .build();
         let action_button = gtk::Button::builder()
             .child(&action_content)
@@ -240,7 +244,7 @@ impl ResultRow {
             .build();
         if quality_group.n_toggles() == 0 {
             action_button.set_sensitive(false);
-            action_content.set_label("Not available");
+            action_content.set_label(&gettext("Not available"));
         }
         actions.append(&action_button);
 
@@ -357,10 +361,10 @@ impl ResultRow {
             ActionState::Idle => {
                 self.action_content
                     .set_icon_name("folder-download-symbolic");
-                self.action_content.set_label(if has_qualities {
-                    "Download"
+                self.action_content.set_label(&if has_qualities {
+                    gettext("Download")
                 } else {
-                    "Not available"
+                    gettext("Not available")
                 });
                 self.action_button
                     .set_css_classes(&["pill", "suggested-action"]);
@@ -369,7 +373,7 @@ impl ResultRow {
             }
             ActionState::Downloading => {
                 self.action_content.set_icon_name("process-stop-symbolic");
-                self.action_content.set_label("Cancel");
+                self.action_content.set_label(&gettext("Cancel"));
                 self.action_button
                     .set_css_classes(&["pill", "destructive-action"]);
                 self.action_button.set_sensitive(true);
@@ -378,14 +382,14 @@ impl ResultRow {
             ActionState::Done(_) => {
                 self.action_content
                     .set_icon_name("media-playback-start-symbolic");
-                self.action_content.set_label("Open");
+                self.action_content.set_label(&gettext("Open"));
                 self.action_button.set_css_classes(&["pill"]);
                 self.action_button.set_sensitive(true);
                 self.set_quality_group_sensitive(true);
             }
             ActionState::Failed => {
                 self.action_content.set_icon_name("view-refresh-symbolic");
-                self.action_content.set_label("Retry");
+                self.action_content.set_label(&gettext("Retry"));
                 self.action_button
                     .set_css_classes(&["pill", "suggested-action"]);
                 self.action_button.set_sensitive(has_qualities);
@@ -432,7 +436,8 @@ impl ResultRow {
                 self.set_action_state(ActionState::Done(path.clone()));
                 self.restore_subtitle();
                 self.status_icon.set_icon_name(Some("emblem-ok-symbolic"));
-                self.status_icon.set_tooltip_text(Some("Download complete"));
+                self.status_icon
+                    .set_tooltip_text(Some(&gettext("Download complete")));
                 self.status_icon.remove_css_class("error");
                 self.status_icon.add_css_class("success");
                 self.status_icon.set_visible(true);
@@ -440,14 +445,11 @@ impl ResultRow {
             State::Failed { reason } => {
                 self.progress_box.set_visible(false);
                 self.set_action_state(ActionState::Failed);
-                self.expander
-                    .set_subtitle(&glib::markup_escape_text(&format!(
-                        "Download failed: {reason}"
-                    )));
+                let msg = gettext("Download failed: {reason}").replace("{reason}", reason);
+                self.expander.set_subtitle(&glib::markup_escape_text(&msg));
                 self.status_icon
                     .set_icon_name(Some("dialog-error-symbolic"));
-                self.status_icon
-                    .set_tooltip_text(Some(&format!("Download failed: {reason}")));
+                self.status_icon.set_tooltip_text(Some(&msg));
                 self.status_icon.remove_css_class("success");
                 self.status_icon.add_css_class("error");
                 self.status_icon.set_visible(true);

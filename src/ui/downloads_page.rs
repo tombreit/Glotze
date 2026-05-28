@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gettextrs::gettext;
 use gtk::gio;
 
 use crate::download::download_dir_display;
@@ -48,18 +49,21 @@ impl DownloadsPage {
             .child(&clamp)
             .build();
 
+        // Single physical line on the translatable string so xgettext's C
+        // parser sees the same text Rust does at runtime — see the matching
+        // note in src/application.rs::orientation_text.
+        #[rustfmt::skip]
         let status = adw::StatusPage::builder()
             .icon_name("folder-download-symbolic")
-            .title("No downloads yet")
-            .description(format!(
-                "Pick an episode on the Search page and choose a quality. \
-                 Downloads are saved to {}.",
-                download_dir_display()
-            ))
+            .title(gettext("No downloads yet"))
+            .description(
+                gettext("Pick an episode on the Search page and choose a quality. Downloads are saved to {dir}.")
+                    .replace("{dir}", &download_dir_display()),
+            )
             .build();
         // Resolves against the window-level action, so no ViewStack plumbing.
         let go_search = gtk::Button::builder()
-            .label("Search a Mediathek")
+            .label(gettext("Search a Mediathek"))
             .css_classes(["pill", "suggested-action"])
             .halign(gtk::Align::Center)
             .action_name("win.show-search")
@@ -102,6 +106,9 @@ impl DownloadsPage {
                 if *bytes_total > 0 {
                     let frac = (*bytes_done as f64 / *bytes_total as f64).clamp(0.0, 1.0);
                     entry.bar.set_fraction(frac);
+                    // "12 MB / 34 MB · 35%" — the structure is universal across
+                    // locales (numbers, units, percent sign), so we keep the
+                    // format string out of the catalogue.
                     entry.row.set_subtitle(&format!(
                         "{} / {} · {:.0}%",
                         human_bytes(*bytes_done),
@@ -110,31 +117,33 @@ impl DownloadsPage {
                     ));
                 } else {
                     entry.bar.pulse();
-                    entry
-                        .row
-                        .set_subtitle(&format!("{} downloaded", human_bytes(*bytes_done)));
+                    entry.row.set_subtitle(
+                        &gettext("{size} downloaded").replace("{size}", &human_bytes(*bytes_done)),
+                    );
                 }
                 entry.icon.set_icon_name(Some("folder-download-symbolic"));
             }
             State::Done { bytes_total, path } => {
                 entry.bar.set_fraction(1.0);
-                entry.row.set_subtitle(&format!(
-                    "Completed · {} · {}",
-                    human_bytes(*bytes_total),
-                    path.display()
-                ));
+                entry.row.set_subtitle(
+                    &gettext("Completed · {size} · {path}")
+                        .replace("{size}", &human_bytes(*bytes_total))
+                        .replace("{path}", &path.display().to_string()),
+                );
                 entry.icon.set_icon_name(Some("object-select-symbolic"));
                 *entry.path.borrow_mut() = Some(path.clone());
                 entry.open_btn.set_visible(true);
             }
             State::Failed { reason } => {
                 entry.bar.set_fraction(0.0);
-                entry.row.set_subtitle(&format!("Failed: {reason}"));
+                entry
+                    .row
+                    .set_subtitle(&gettext("Failed: {reason}").replace("{reason}", reason));
                 entry.icon.set_icon_name(Some("dialog-error-symbolic"));
             }
             State::Cancelled => {
                 entry.bar.set_fraction(0.0);
-                entry.row.set_subtitle("Cancelled");
+                entry.row.set_subtitle(&gettext("Cancelled"));
                 entry.icon.set_icon_name(Some("process-stop-symbolic"));
             }
         }
@@ -143,7 +152,7 @@ impl DownloadsPage {
     fn build_row(&self, p: &Progress) -> RowWidgets {
         let row = adw::ActionRow::builder()
             .title(gtk::glib::markup_escape_text(&p.title))
-            .subtitle("Starting…")
+            .subtitle(gettext("Starting…"))
             .build();
 
         let icon = gtk::Image::from_icon_name("folder-download-symbolic");
@@ -165,7 +174,7 @@ impl DownloadsPage {
         let path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
         let open_btn = gtk::Button::builder()
             .icon_name("folder-open-symbolic")
-            .tooltip_text("Show in Files")
+            .tooltip_text(gettext("Show in Files"))
             .valign(gtk::Align::Center)
             .visible(false)
             .css_classes(["flat"])
