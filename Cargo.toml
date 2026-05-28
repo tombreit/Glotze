@@ -18,6 +18,10 @@ jiff          = "0.1"
 anyhow        = "1"
 log           = "0.4"
 env_logger    = "0.11"
+# `gettext-system` links libintl from the GNOME SDK rather than bundling its
+# own gettext build — that's what the gtk4-rs book and every Flathub Rust app
+# uses, and it keeps the binary smaller and consistent with the runtime.
+gettext-rs    = { version = "0.7", features = ["gettext-system"] }
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

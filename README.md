@@ -46,6 +46,27 @@ Type a query (e.g. `Tagesschau`) into the search bar. After ~300 ms a list
 appears. Click a row → choose a quality → switch to **Downloads** to see the
 progress bar. Files land in your XDG `Videos` directory (`~/Videos/Glotze`).
 
+### Testing translations
+
+`cargo run` skips meson and so doesn't install the gettext `.mo` catalogues,
+leaving the UI English. To see the German UI (or any other locale shipped
+under `po/`), install through meson into a user-writable prefix and run from
+there — the [gtk4-rs book i18n
+chapter](https://gtk-rs.org/gtk4-rs/stable/latest/book/i18n.html) recommends
+`~/.local`:
+
+```sh
+meson setup -Dprefix="$HOME/.local" build      # one-time
+meson install -C build                          # no sudo
+LANGUAGE=de glotze                              # ~/.local/bin is usually on $PATH
+```
+
+If `build/` was already configured with the default prefix, swap it in place
+with `meson configure -Dprefix="$HOME/.local" build` — that preserves the
+cargo target cache. `LANGUAGE=de` overrides the message language only;
+`LC_ALL=de_DE.UTF-8 glotze` is the foolproof fallback if your system locale
+is set to `C`.
+
 ### Code quality
 
 Standard Rust tooling, all configured at the repo root:
@@ -77,6 +98,7 @@ release and Flathub workflow lives in [`PUBLISHING.md`](PUBLISHING.md).
 | Run (dev) | `cargo run` |
 | Format · lint · test | `cargo fmt` · `cargo clippy` · `cargo test` (or `pre-commit run -a`) |
 | Build via meson (online) | `meson setup build && ninja -C build` |
+| Run installed locally (no sudo) | `meson install -C build` after a `--prefix="$HOME/.local"` setup — see [Testing translations](#testing-translations) |
 | Validate metadata | `meson test -C build` (appstreamcli + desktop-file-validate) |
 | Build the Flatpak (offline, like Flathub) | `flatpak-builder --user --install --force-clean build-dir build-aux/io.github.tombreit.Glotze.yml` |
 | Lint for Flathub | `flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/io.github.tombreit.Glotze.yml` |

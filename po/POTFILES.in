@@ -1,0 +1,9 @@
+# Files containing translatable strings. Paths are relative to the project
+# source root. Keep alphabetical so diffs stay tidy.
+data/io.github.tombreit.Glotze.desktop.in
+data/io.github.tombreit.Glotze.metainfo.xml.in
+src/application.rs
+src/ui/downloads_page.rs
+src/ui/results_page.rs
+src/ui/row.rs
+src/window.rs

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
+use gettextrs::gettext;
 use gtk::{gdk, gio, glib};
 
 use crate::download::download_dir_display;
@@ -50,7 +51,7 @@ fn install_app_actions(app: &adw::Application) {
 
 fn show_about(app: &adw::Application) {
     let dialog = adw::AboutDialog::builder()
-        .application_name("Glotze")
+        .application_name(gettext("Glotze"))
         .application_icon(app.application_id().unwrap_or_default())
         .version(env!("CARGO_PKG_VERSION"))
         .developer_name("tombreit")
@@ -58,21 +59,20 @@ fn show_about(app: &adw::Application) {
         .issue_url("https://github.com/tombreit/Glotze/issues")
         .copyright("© 2026 tombreit")
         .license_type(gtk::License::Custom)
-        .license(
-            "Licensed under the \
-             [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). \
-             See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the \
-             full text.",
-        )
+        // Single physical line so xgettext's C parser extracts the same string
+        // Rust sees at runtime — `\<newline>` line-continuation in Rust strips
+        // the leading whitespace on the next line, but the C parser keeps it,
+        // and that mismatch breaks msgid lookup against the catalogue.
+        .license(gettext("Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the full text."))
         .comments(orientation_text(&glib::markup_escape_text(
             &download_dir_display(),
         )))
         .build();
 
-    dialog.add_link("Repository", "https://github.com/tombreit/Glotze");
+    dialog.add_link(&gettext("Repository"), "https://github.com/tombreit/Glotze");
 
     dialog.add_acknowledgement_section(
-        Some("Stands on the shoulders of"),
+        Some(&gettext("Stands on the shoulders of")),
         &[
             "MediathekViewWeb https://github.com/mediathekview/MediathekViewWeb",
             "MediathekView https://github.com/mediathekview",
@@ -112,37 +112,32 @@ fn welcome_marker(app: &adw::Application) -> Option<PathBuf> {
     )
 }
 
-// Used by both the welcome dialog and About>Details. When i18n is added, wrap
-// the literal with `gettext()` and swap `format!` for `.replace("{dir}", …)` so
-// translators can reorder the placeholder.
+// Used by both the welcome dialog and About>Details. `.replace("{dir}", …)`
+// (instead of Rust's `format!`) lets translators reorder the placeholder. The
+// translatable string is one physical line: xgettext's C parser preserves the
+// indentation on `\<newline>` continuations whereas Rust strips it, and the
+// runtime msgid lookup would then miss the catalogue entry.
+#[rustfmt::skip]
 fn orientation_text(dir: &str) -> String {
-    format!(
-        "Glotze <b>downloads</b> episodes for you — there's no streaming and no \
-         built-in player.\n\n\
-         Content comes from the public broadcasters (DACH region), eg. ARD, ZDF, 3sat, \
-         arte,… via the MediathekViewWeb API; files are saved to \
-         <tt>{dir}</tt>. Some videos are geo-blocked to Germany, Austria or \
-         Switzerland.\n\n\
-         “Glotze” is affectionate German slang for a TV set — roughly “the box” \
-         or “the telly”."
-    )
+    gettext("Glotze <b>downloads</b> episodes for you — there's no streaming and no built-in player.\n\nContent comes from the public broadcasters (DACH region), eg. ARD, ZDF, 3sat, arte,… via the MediathekViewWeb API; files are saved to <tt>{dir}</tt>. Some videos are geo-blocked to Germany, Austria or Switzerland.\n\n“Glotze” is affectionate German slang for a TV set — roughly “the box” or “the telly”.")
+        .replace("{dir}", dir)
 }
 
 fn show_welcome(app: &adw::Application, marker: PathBuf) {
     let body = orientation_text(&glib::markup_escape_text(&download_dir_display()));
 
     let dont_show = gtk::CheckButton::builder()
-        .label("Don't show this again")
+        .label(gettext("Don't show this again"))
         .halign(gtk::Align::Center)
         .build();
 
     let dialog = adw::AlertDialog::builder()
-        .heading("Welcome to Glotze")
+        .heading(gettext("Welcome to Glotze"))
         .body(body)
         .body_use_markup(true)
         .extra_child(&dont_show)
         .build();
-    dialog.add_response("ok", "_Got it");
+    dialog.add_response("ok", &gettext("_Got it"));
     dialog.set_default_response(Some("ok"));
     dialog.set_close_response("ok");
 

@@ -12,12 +12,16 @@ project(
   license: 'EUPL-1.2',
 )
 
-prefix  = get_option('prefix')
-bindir  = prefix / get_option('bindir')
-datadir = prefix / get_option('datadir')
+i18n = import('i18n')
 
-application_id = 'io.github.tombreit.Glotze'
-bin_name       = 'glotze'
+prefix    = get_option('prefix')
+bindir    = prefix / get_option('bindir')
+datadir   = prefix / get_option('datadir')
+localedir = prefix / get_option('localedir')
+
+application_id  = 'io.github.tombreit.Glotze'
+bin_name        = 'glotze'
+gettext_package = bin_name
 
 cargo    = find_program('cargo', required: true)
 cargo_sh = find_program('build-aux' / 'cargo.sh')
@@ -43,6 +47,13 @@ custom_target(
   output: bin_name,
   install: true,
   install_dir: bindir,
+  # Picked up by build.rs and re-exported as rustc env vars so src/config.rs
+  # can read them via option_env!. See gtk-rs.org/.../i18n.html.
+  env: {
+    'GETTEXT_PACKAGE': gettext_package,
+    'LOCALEDIR'      : localedir,
+    'APP_ID'         : application_id,
+  },
   command: [
     cargo_sh,
     cargo,
@@ -56,6 +67,7 @@ custom_target(
 )
 
 subdir('data')
+subdir('po')
 
 gnome = import('gnome')
 gnome.post_install(

@@ -3,6 +3,7 @@ use std::rc::{Rc, Weak};
 use std::time::Duration;
 
 use adw::prelude::*;
+use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::api::models::Show;
@@ -23,7 +24,7 @@ impl AppWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window = adw::ApplicationWindow::builder()
             .application(app)
-            .title("Glotze")
+            .title(gettext("Glotze"))
             .default_width(900)
             .default_height(640)
             .build();
@@ -32,19 +33,31 @@ impl AppWindow {
         let downloads = Rc::new(DownloadsPage::new());
 
         let search_entry = gtk::SearchEntry::builder()
-            .placeholder_text("Search title or topic…")
+            .placeholder_text(gettext("Search title or topic…"))
             .hexpand(true)
             .build();
         // Sort control: a menu button driven by the stateful `win.sort` action,
         // wired further down once `last_results`/`sort` exist.
         let sort_menu = gio::Menu::new();
-        sort_menu.append(Some("Newest first"), Some("win.sort::date-newest"));
-        sort_menu.append(Some("Oldest first"), Some("win.sort::date-oldest"));
-        sort_menu.append(Some("Longest first"), Some("win.sort::duration-longest"));
-        sort_menu.append(Some("Shortest first"), Some("win.sort::duration-shortest"));
+        sort_menu.append(
+            Some(&gettext("Newest first")),
+            Some("win.sort::date-newest"),
+        );
+        sort_menu.append(
+            Some(&gettext("Oldest first")),
+            Some("win.sort::date-oldest"),
+        );
+        sort_menu.append(
+            Some(&gettext("Longest first")),
+            Some("win.sort::duration-longest"),
+        );
+        sort_menu.append(
+            Some(&gettext("Shortest first")),
+            Some("win.sort::duration-shortest"),
+        );
         let sort_button = gtk::MenuButton::builder()
             .icon_name("view-sort-descending-symbolic")
-            .tooltip_text("Sort results")
+            .tooltip_text(gettext("Sort results"))
             .valign(gtk::Align::Center)
             .menu_model(&sort_menu)
             .build();
@@ -73,13 +86,13 @@ impl AppWindow {
         view_stack.add_titled_with_icon(
             &search_page_box,
             Some("search"),
-            "Search",
+            &gettext("Search"),
             "system-search-symbolic",
         );
         view_stack.add_titled_with_icon(
             downloads.widget(),
             Some("downloads"),
-            "Downloads",
+            &gettext("Downloads"),
             "folder-download-symbolic",
         );
 
@@ -131,8 +144,9 @@ impl AppWindow {
                 log::error!("HTTP client init failed: {e:#}");
                 search_entry.set_sensitive(false);
                 results.show_empty(
-                    "Network unavailable",
-                    &format!("Glotze couldn't initialise its HTTP client: {e}"),
+                    &gettext("Network unavailable"),
+                    &gettext("Glotze couldn't initialise its HTTP client: {error}")
+                        .replace("{error}", &e.to_string()),
                 );
             }
         }
@@ -153,7 +167,7 @@ fn build_header_bar(view_stack: &adw::ViewStack) -> adw::HeaderBar {
 
     let about_button = gtk::Button::builder()
         .icon_name("help-about-symbolic")
-        .tooltip_text("About Glotze")
+        .tooltip_text(gettext("About Glotze"))
         .action_name("app.about")
         .build();
 
@@ -291,15 +305,21 @@ fn wire_progress_consumer(
 
                 match state {
                     State::Done { .. } => {
-                        toast.add_toast(adw::Toast::new(&format!("Download finished: {title}")));
+                        toast.add_toast(adw::Toast::new(
+                            &gettext("Download finished: {title}").replace("{title}", &title),
+                        ));
                     }
                     State::Failed { reason } => {
-                        toast.add_toast(adw::Toast::new(&format!(
-                            "Download failed: {title} ({reason})"
-                        )));
+                        toast.add_toast(adw::Toast::new(
+                            &gettext("Download failed: {title} ({reason})")
+                                .replace("{title}", &title)
+                                .replace("{reason}", &reason),
+                        ));
                     }
                     State::Cancelled => {
-                        toast.add_toast(adw::Toast::new(&format!("Download cancelled: {title}")));
+                        toast.add_toast(adw::Toast::new(
+                            &gettext("Download cancelled: {title}").replace("{title}", &title),
+                        ));
                     }
                     State::Running { .. } => {}
                 }
@@ -329,14 +349,15 @@ fn wire_row_action(
                         results.track_download(info.id, sid);
                     }
                     let toast = adw::Toast::builder()
-                        .title(format!("Download started: {}", info.title))
+                        .title(gettext("Download started: {title}").replace("{title}", &info.title))
                         .timeout(3)
                         .build();
                     toast_overlay.add_toast(toast);
                 }
                 None => {
-                    toast_overlay
-                        .add_toast(adw::Toast::new("Could not start download (URL missing)."));
+                    toast_overlay.add_toast(adw::Toast::new(&gettext(
+                        "Could not start download (URL missing).",
+                    )));
                 }
             }
         }
@@ -480,9 +501,15 @@ fn run_search(
     toast_overlay: adw::ToastOverlay,
 ) {
     if query.trim().is_empty() {
-        results.show_loading("Latest episodes", "Loading the most recent broadcasts…");
+        results.show_loading(
+            &gettext("Latest episodes"),
+            &gettext("Loading the most recent broadcasts…"),
+        );
     } else {
-        results.show_loading("Searching…", &format!("Looking for “{query}”"));
+        results.show_loading(
+            &gettext("Searching…"),
+            &gettext("Looking for “{query}”").replace("{query}", &query),
+        );
     }
 
     glib::MainContext::default().spawn_local(async move {
@@ -505,14 +532,16 @@ fn run_search(
             Ok(Err(e)) => {
                 log::error!("search '{query}' failed: {e:#}");
                 results.show_empty(
-                    "Search failed",
-                    "Couldn’t reach mediathekviewweb.de — check your connection.",
+                    &gettext("Search failed"),
+                    &gettext("Couldn’t reach mediathekviewweb.de — check your connection."),
                 );
-                toast_overlay.add_toast(adw::Toast::new(&format!("Search failed: {e}")));
+                toast_overlay.add_toast(adw::Toast::new(
+                    &gettext("Search failed: {error}").replace("{error}", &e.to_string()),
+                ));
             }
             Err(e) => {
                 log::error!("spawn_blocking failed: {e:#}");
-                toast_overlay.add_toast(adw::Toast::new("Internal error during search"));
+                toast_overlay.add_toast(adw::Toast::new(&gettext("Internal error during search")));
             }
         }
     });
