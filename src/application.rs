@@ -64,12 +64,9 @@ fn show_about(app: &adw::Application) {
              See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the \
              full text.",
         )
-        .comments(
-            "Search and download episodes from public broadcaster \
-             Mediatheken (DACH region), eg. ARD, ZDF, 3sat, arte,… via the MediathekViewWeb API.\n\n\
-             “Glotze” is affectionate German slang for a TV set — roughly “the \
-             box” or “the telly”.",
-        )
+        .comments(orientation_text(&glib::markup_escape_text(
+            &download_dir_display(),
+        )))
         .build();
 
     dialog.add_link("Repository", "https://github.com/tombreit/Glotze");
@@ -115,16 +112,24 @@ fn welcome_marker(app: &adw::Application) -> Option<PathBuf> {
     )
 }
 
-fn show_welcome(app: &adw::Application, marker: PathBuf) {
-    let body = format!(
+// Used by both the welcome dialog and About>Details. When i18n is added, wrap
+// the literal with `gettext()` and swap `format!` for `.replace("{dir}", …)` so
+// translators can reorder the placeholder.
+fn orientation_text(dir: &str) -> String {
+    format!(
         "Glotze <b>downloads</b> episodes for you — there's no streaming and no \
          built-in player.\n\n\
-         • Content comes from the German public broadcasters (ARD, ZDF, 3sat, \
-         arte, …).\n\
-         • Files are saved to <tt>{}</tt>.\n\
-         • Some videos are geo-blocked to Germany, Austria or Switzerland.",
-        glib::markup_escape_text(&download_dir_display()),
-    );
+         Content comes from the public broadcasters (DACH region), eg. ARD, ZDF, 3sat, \
+         arte,… via the MediathekViewWeb API; files are saved to \
+         <tt>{dir}</tt>. Some videos are geo-blocked to Germany, Austria or \
+         Switzerland.\n\n\
+         “Glotze” is affectionate German slang for a TV set — roughly “the box” \
+         or “the telly”."
+    )
+}
+
+fn show_welcome(app: &adw::Application, marker: PathBuf) {
+    let body = orientation_text(&glib::markup_escape_text(&download_dir_display()));
 
     let dont_show = gtk::CheckButton::builder()
         .label("Don't show this again")
