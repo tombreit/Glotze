@@ -32,3 +32,14 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
+      # Keep the Flathub vendor manifest in sync with Cargo.lock. The script
+      # rewrites cargo-sources.json; if Cargo.lock actually changed the deps,
+      # the file gets updated and pre-commit aborts the commit so you can
+      # `git add cargo-sources.json` and retry. If deps are unchanged the
+      # script is a no-op and the commit goes through.
+      - id: cargo-sources-fresh
+        name: regenerate cargo-sources.json when Cargo.lock changes
+        entry: ./scripts/update-cargo-sources.sh
+        language: system
+        files: ^Cargo\.lock$
+        pass_filenames: false

@@ -10,11 +10,14 @@
 #
 # Modes:
 #   ./scripts/preflight.sh            fast: fmt, clippy, test, manifest+appstream lint
-#   ./scripts/preflight.sh --full     also: offline flatpak build + `flatpak-builder-lint repo`
-#                                     (with screenshot mirroring — reproduces the CI "Lint repo"
-#                                     step, including the appstream-*screenshot* checks)
-#   ./scripts/preflight.sh --release  like --full, but first regenerates cargo-sources.json
-#                                     (this is what cargo-release calls)
+#   ./scripts/preflight.sh --full     also: regenerate cargo-sources.json + offline flatpak
+#                                     build + `flatpak-builder-lint repo` (with screenshot
+#                                     mirroring — reproduces the CI "Lint repo" step,
+#                                     including the appstream-*screenshot* checks)
+#   ./scripts/preflight.sh --release  same as --full today; kept as a distinct flag because
+#                                     cargo-release's pre-release-hook calls it by name and
+#                                     a future divergence (e.g. extra tag-only checks) would
+#                                     land here
 #
 # --full/--release need the flatpak toolchain (flatpak-builder, the org.flatpak.Builder
 # flatpak for the linter, a `flathub` remote, and the GNOME 50 runtime). The first full
@@ -64,8 +67,13 @@ fi
 
 # ---- Rust + metadata (fast; always run) ------------------------------------
 
-if [ "$mode" = "release" ]; then
-    step "Regenerating cargo-sources.json (release)"
+# Regenerate cargo-sources.json for any mode that builds the flatpak. Skipping
+# this on --fast is fine (no flatpak build) but skipping it on --full bit us:
+# Cargo.toml dep edits ship a stale vendor manifest and the offline flatpak
+# build fails with "no matching package …". Cheap to always regen here — the
+# generator caches its Python venv across runs.
+if [ "$mode" != "fast" ]; then
+    step "Regenerating cargo-sources.json"
     ./scripts/update-cargo-sources.sh
 fi
 
