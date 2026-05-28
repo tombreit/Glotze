@@ -3,7 +3,7 @@ name = "glotze"
 version = "0.0.12"
 edition = "2024"
 rust-version = "1.92"
-description = "Search and download videos from German public broadcaster Mediatheken"
+description = "Search and download videos from public broadcaster Mediatheken (DACH region)."
 license = "EUPL-1.2"
 publish = false  # binary-only app; not on crates.io
 
