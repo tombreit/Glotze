@@ -31,6 +31,7 @@
   <url type="homepage">https://github.com/tombreit/Glotze</url>
   <url type="bugtracker">https://github.com/tombreit/Glotze/issues</url>
   <url type="vcs-browser">https://github.com/tombreit/Glotze</url>
+  <url type="donation">https://ko-fi.com/thmsde</url>
   <content_rating type="oars-1.1" />
   <branding>
     <color type="primary" scheme_preference="light">#3584e4</color>
@@ -50,9 +51,9 @@
   </keywords>
   <!--
     Screenshots live in data/screenshots/ (see the README there). Flathub mirrors
-    these URLs at build time; it does not host the images. Drop the PNGs into that
-    directory using the filenames below, push to main, then UNCOMMENT this block.
-    Exactly one screenshot must be type="default" (the Flathub hero image).
+    these HTTPS URLs at build time; it does not host the images, so each URL must
+    resolve when the manifest is reviewed. Exactly one screenshot is type="default"
+    (the Flathub hero image).
   -->
   <screenshots>
     <screenshot type="default">

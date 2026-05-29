@@ -7,11 +7,16 @@ icon, and the Flatpak sandbox. Don't change it.
 Most GNOME apps have GNOME Nightly CI and a separate `flathub/<app-id>` packaging
 repo. Glotze has no nightly pipeline, so **this repo doubles as the Flathub-prep
 repo**: the manifest, the vendored sources, and the validators all live here.
-Flathub's own docs: <https://docs.flathub.org/docs/for-app-authors/submission>.
+Flathub's own docs: the [submission
+guide](https://docs.flathub.org/docs/for-app-authors/submission) and the
+[requirements / quality
+guidelines](https://docs.flathub.org/docs/for-app-authors/requirements) are what
+reviewers check against — read both before opening the PR.
 
-The day-to-day command cheat-sheet (run, build, validate, deps) is in the
-README's *Maintainer commands*. This file covers the parts unique to
-distribution: **how it builds → validate → release → submit → maintain**.
+The day-to-day command cheat-sheet (run, build, validate, deps) is in
+[`CONTRIBUTING.md`](CONTRIBUTING.md) under *Maintainer commands*. This file
+covers the parts unique to distribution: **how it builds → validate → release →
+submit → maintain**.
 
 ---
 
@@ -40,15 +45,19 @@ Run these before tagging or submitting — CI (`.github/workflows/flatpak.yml`)
 runs all of them too.
 
 ```sh
-# Metadata — also wired as `meson test` targets and run during the Flatpak build:
+# Metadata — also wired as `meson test` targets and run during the Flatpak build.
+# The desktop/metainfo files are .in templates; meson merges translations and
+# emits the validated files under build/, so always validate via meson test
+# (never the .in source directly):
 meson setup build
 meson test -C build                 # appstreamcli validate + desktop-file-validate
 
-# Flathub's own linter (org.flatpak.Builder provides it; CI uses the bundled binary):
+# Flathub's own linter (org.flatpak.Builder provides it; CI uses the bundled binary).
+# The `appstream` subcommand wants the *merged* file from build/, not the .in source:
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
     manifest build-aux/io.github.tombreit.Glotze.yml
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
-    appstream data/io.github.tombreit.Glotze.metainfo.xml
+    appstream build/data/io.github.tombreit.Glotze.metainfo.xml
 ```
 
 `appstreamcli` and the linter treat warnings as fatal for Flathub — fixing them
@@ -69,7 +78,7 @@ version. Most releases don't change dependencies, so they don't touch
 #      Cargo.toml  ->  version = "X.Y.Z"
 cargo update -p glotze --offline          # 2. sync Cargo.lock
 # 3. ONLY if dependencies changed:  ./scripts/update-cargo-sources.sh
-# 4. Prepend a <release> to data/io.github.tombreit.Glotze.metainfo.xml:
+# 4. Prepend a <release> to data/io.github.tombreit.Glotze.metainfo.xml.in:
 #      <release version="X.Y.Z" date="YYYY-MM-DD">
 #        <url>https://github.com/tombreit/Glotze/releases/tag/vX.Y.Z</url>
 #      </release>
@@ -91,6 +100,9 @@ install that asset using the commands in the README's *Install* section. (Tag an
 
 The metainfo entry can stay minimal (version + date + url); add a `<description>`
 only when a release is worth a changelog line — Flathub renders it on the listing.
+The [AppStream releases
+spec](https://www.freedesktop.org/software/appstream/docs/chap-Metadata.html#tag-releases)
+documents the accepted tags if you need more than version/date/url.
 
 **Shortcut:** `cargo release patch -x --no-confirm` does steps 1–6 in one command
 (config in `Cargo.toml` under `[package.metadata.release]`; `cargo install

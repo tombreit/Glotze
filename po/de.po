@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: glotze\n"
-"Report-Msgid-Bugs-To: https://github.com/tombreit/Glotze/issues\n"
-"POT-Creation-Date: 2026-05-28 00:00+0000\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-29 15:17+0200\n"
 "PO-Revision-Date: 2026-05-28 00:00+0000\n"
 "Last-Translator: tombreit <tombreit@gmail.com>\n"
 "Language-Team: German <gnome-de@gnome.org>\n"
@@ -21,129 +21,150 @@ msgstr ""
 # data/io.github.tombreit.Glotze.desktop.in
 # data/io.github.tombreit.Glotze.metainfo.xml.in
 # ---------------------------------------------------------------------------
-
-#. desktop: Name=
-#. metainfo: <name>
-#. About dialog application_name
-#. Window title
+#: data/io.github.tombreit.Glotze.desktop.in:2
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:6 src/application.rs:54
+#: src/window.rs:27
 msgid "Glotze"
 msgstr "Glotze"
 
-#. desktop: GenericName=
+#: data/io.github.tombreit.Glotze.desktop.in:3
 msgid "Mediathek Browser"
 msgstr "Mediathek-Browser"
 
-#. desktop: Comment=
-msgid "Search and download videos from public broadcaster Mediatheken (DACH region)"
-msgstr "Sendungen der öffentlich-rechtlichen Mediatheken (DACH-Region) suchen und herunterladen"
+#: data/io.github.tombreit.Glotze.desktop.in:4
+msgid ""
+"Search and download videos from public broadcaster Mediatheken (DACH region)"
+msgstr ""
+"Sendungen der öffentlich-rechtlichen Mediatheken (DACH-Region) suchen und "
+"herunterladen"
 
-#. desktop: Keywords= (left unchanged; broadcaster names and Mediathek are
-#. used identically in German.)
+#: data/io.github.tombreit.Glotze.desktop.in:11
 msgid "ARD;ZDF;Mediathek;Tagesschau;Tatort;Video;"
 msgstr "ARD;ZDF;Mediathek;Tagesschau;Tatort;Video;"
 
-#. metainfo: <summary>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:7
 msgid "Search and download public broadcaster Mediatheken (DACH region)"
-msgstr "Öffentlich-rechtliche Mediatheken (DACH-Region) durchsuchen und herunterladen"
+msgstr ""
+"Öffentlich-rechtliche Mediatheken (DACH-Region) durchsuchen und herunterladen"
 
-#. metainfo: <description>/<p>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:9
 msgid ""
 "Glotze is a GNOME-native desktop client for searching videos across ARD, "
 "ZDF, 3sat, arte and the other German public broadcasters via the "
-"MediathekViewWeb API. Episodes can be downloaded to the local Videos "
-"folder for offline viewing."
+"MediathekViewWeb API. Episodes can be downloaded to the local Videos folder "
+"for offline viewing."
 msgstr ""
-"Glotze ist ein GNOME-eigener Desktop-Client zur Suche von Sendungen aus "
-"ARD, ZDF, 3sat, arte und den weiteren öffentlich-rechtlichen Sendern über "
-"die MediathekViewWeb-API. Sendungen lassen sich in den lokalen "
-"Videos-Ordner herunterladen und offline anschauen."
+"Glotze ist ein GNOME-eigener Desktop-Client zur Suche von Sendungen aus ARD, "
+"ZDF, 3sat, arte und den weiteren öffentlich-rechtlichen Sendern über die "
+"MediathekViewWeb-API. Sendungen lassen sich in den lokalen Videos-Ordner "
+"herunterladen und offline anschauen."
 
-#. metainfo: <description>/<p>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:14
 msgid ""
-"Playback and streaming are intentionally out of scope — Glotze hands you "
-"the file and steps out of the way."
+"Playback and streaming are intentionally out of scope — Glotze hands you the "
+"file and steps out of the way."
 msgstr ""
-"Wiedergabe und Streaming sind bewusst nicht enthalten – Glotze legt dir "
-"die Datei hin und tritt zur Seite."
+"Wiedergabe und Streaming sind bewusst nicht enthalten – Glotze legt dir die "
+"Datei hin und tritt zur Seite."
 
-#. metainfo: <description>/<p>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:18
 msgid "Features:"
 msgstr "Funktionen:"
 
-#. metainfo: <description>/<ul>/<li>
-msgid "Search the combined MediathekViewWeb catalogue across every German public broadcaster"
-msgstr "Den kombinierten MediathekViewWeb-Katalog aller deutschen öffentlich-rechtlichen Sender durchsuchen"
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:20
+msgid ""
+"Search the combined MediathekViewWeb catalogue across every German public "
+"broadcaster"
+msgstr ""
+"Den kombinierten MediathekViewWeb-Katalog aller deutschen öffentlich-"
+"rechtlichen Sender durchsuchen"
 
-#. metainfo: <description>/<ul>/<li>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:21
 msgid "Choose a download quality — low, medium or high — per result"
 msgstr "Download-Qualität pro Treffer wählen – niedrig, mittel oder hoch"
 
-#. metainfo: <description>/<ul>/<li>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:22
 msgid "Download episodes to your Videos folder with a live progress indicator"
-msgstr "Sendungen mit Fortschrittsanzeige in den eigenen Videos-Ordner herunterladen"
+msgstr ""
+"Sendungen mit Fortschrittsanzeige in den eigenen Videos-Ordner herunterladen"
 
-#. metainfo: <description>/<ul>/<li>
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:23
 msgid "Per-broadcaster channel logos for quick visual scanning of results"
 msgstr "Senderlogos pro Treffer für schnelles Überfliegen der Ergebnisse"
 
-#. metainfo: <screenshot>/<caption>
-msgid "Main Glotze view"
-msgstr "Hauptansicht von Glotze"
-
-#. metainfo: <developer>/<name> — left as-is, proper noun.
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:28
 msgid "tombreit"
 msgstr "tombreit"
 
-#. metainfo: <release>/<description>/<p>
-msgid "Polished app, build system and distribution."
-msgstr "App, Build-System und Distribution überarbeitet."
-
-#. metainfo: <release>/<description>/<p>
-msgid "Initial milestone: search MediathekViewWeb, pick quality, download to ~/Videos."
-msgstr "Erstes Etappenziel: MediathekViewWeb durchsuchen, Qualität wählen, nach ~/Videos herunterladen."
-
-#. metainfo: <keyword> entries — unchanged, identical across languages.
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:46
 msgid "ARD"
 msgstr "ARD"
 
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:47
 msgid "ZDF"
 msgstr "ZDF"
 
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:48
 msgid "Mediathek"
 msgstr "Mediathek"
 
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:49
 msgid "arte"
 msgstr "arte"
 
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:50
 msgid "broadcast"
 msgstr "Sendung"
+
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:61
+msgid "Main Glotze view"
+msgstr "Hauptansicht von Glotze"
+
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:83
+msgid "Polished app, build system and distribution."
+msgstr "App, Build-System und Distribution überarbeitet."
+
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:89
+msgid ""
+"Initial milestone: search MediathekViewWeb, pick quality, download to ~/"
+"Videos."
+msgstr ""
+"Erstes Etappenziel: MediathekViewWeb durchsuchen, Qualität wählen, nach ~/"
+"Videos herunterladen."
 
 # ---------------------------------------------------------------------------
 # src/application.rs
 # ---------------------------------------------------------------------------
-
-#. About dialog: license blurb
+#. Single physical line so xgettext's C parser extracts the same string
+#. Rust sees at runtime — `\<newline>` line-continuation in Rust strips
+#. the leading whitespace on the next line, but the C parser keeps it,
+#. and that mismatch breaks msgid lookup against the catalogue.
+#: src/application.rs:66
 msgid ""
-"Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)]"
-"(https://eupl.eu/). See the COPYING file or visit [eupl.eu](https://eupl."
-"eu/) for the full text."
+"Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://"
+"eupl.eu/). See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the "
+"full text."
 msgstr ""
-"Lizenziert unter der [European Union Public Licence v1.2 (EUPL-1.2)]"
-"(https://eupl.eu/). Den vollständigen Text findest du in der "
-"COPYING-Datei oder unter [eupl.eu](https://eupl.eu/)."
+"Lizenziert unter der [European Union Public Licence v1.2 (EUPL-1.2)](https://"
+"eupl.eu/). Den vollständigen Text findest du in der COPYING-Datei oder unter "
+"[eupl.eu](https://eupl.eu/)."
 
-#. About dialog: repository link label
+#: src/application.rs:72
 msgid "Repository"
 msgstr "Repository"
 
-#. About dialog: acknowledgements section header
+#: src/application.rs:73
+msgid "Donate"
+msgstr "Spenden"
+
+#: src/application.rs:76
 msgid "Stands on the shoulders of"
 msgstr "Steht auf den Schultern von"
 
-#. Welcome + About details body. {dir} is the download folder path.
+#: src/application.rs:123
 msgid ""
-"Glotze <b>downloads</b> episodes for you — there's no streaming and no "
-"built-in player.\n"
+"Glotze <b>downloads</b> episodes for you — there's no streaming and no built-"
+"in player.\n"
 "\n"
 "Content comes from the public broadcasters (DACH region), eg. ARD, ZDF, "
 "3sat, arte,… via the MediathekViewWeb API; files are saved to <tt>{dir}</"
@@ -152,242 +173,246 @@ msgid ""
 "“Glotze” is affectionate German slang for a TV set — roughly “the box” or "
 "“the telly”."
 msgstr ""
-"Glotze <b>lädt</b> Sendungen für dich <b>herunter</b> – kein Streaming, "
-"kein eingebauter Player.\n"
+"Glotze <b>lädt</b> Sendungen für dich <b>herunter</b> – kein Streaming, kein "
+"eingebauter Player.\n"
 "\n"
-"Die Inhalte kommen von den öffentlich-rechtlichen Sendern der DACH-"
-"Region (z. B. ARD, ZDF, 3sat, arte …) über die MediathekViewWeb-API; "
-"die Dateien werden in <tt>{dir}</tt> gespeichert. Manche Videos sind aus "
-"Lizenzgründen auf Deutschland, Österreich oder die Schweiz beschränkt.\n"
+"Die Inhalte kommen von den öffentlich-rechtlichen Sendern der DACH-Region "
+"(z. B. ARD, ZDF, 3sat, arte …) über die MediathekViewWeb-API; die Dateien "
+"werden in <tt>{dir}</tt> gespeichert. Manche Videos sind aus Lizenzgründen "
+"auf Deutschland, Österreich oder die Schweiz beschränkt.\n"
 "\n"
-"„Glotze“ ist liebevolle deutsche Umgangssprache für den Fernseher – "
-"ungefähr „die Kiste“ oder „die Flimmerkiste“."
+"„Glotze“ ist liebevolle deutsche Umgangssprache für den Fernseher – ungefähr "
+"„die Kiste“ oder „die Flimmerkiste“."
 
-#. Welcome dialog: opt-out checkbox
+#: src/application.rs:131
 msgid "Don't show this again"
 msgstr "Nicht mehr anzeigen"
 
-#. Welcome dialog: heading
+#: src/application.rs:136
 msgid "Welcome to Glotze"
 msgstr "Willkommen bei Glotze"
 
-#. Welcome dialog: confirmation button. The leading underscore marks the
-#. mnemonic key — keep it on a letter that exists in the German label.
+#: src/application.rs:141
 msgid "_Got it"
 msgstr "_Verstanden"
 
 # ---------------------------------------------------------------------------
-# src/window.rs
+# src/ui/downloads_page.rs
 # ---------------------------------------------------------------------------
+#: src/ui/downloads_page.rs:58
+msgid "No downloads yet"
+msgstr "Noch keine Downloads"
 
-#. Search entry placeholder
-msgid "Search title or topic…"
-msgstr "Titel oder Thema suchen …"
-
-#. Sort menu entries
-msgid "Newest first"
-msgstr "Neueste zuerst"
-
-msgid "Oldest first"
-msgstr "Älteste zuerst"
-
-msgid "Longest first"
-msgstr "Längste zuerst"
-
-msgid "Shortest first"
-msgstr "Kürzeste zuerst"
-
-#. Sort menu button tooltip
-msgid "Sort results"
-msgstr "Ergebnisse sortieren"
-
-#. View switcher tab labels
-msgid "Search"
-msgstr "Suche"
-
-msgid "Downloads"
-msgstr "Downloads"
-
-#. Header bar "about" button tooltip
-msgid "About Glotze"
-msgstr "Über Glotze"
-
-#. Empty state when the HTTP client fails to come up
-msgid "Network unavailable"
-msgstr "Netzwerk nicht verfügbar"
-
-#. HTTP client init failure detail. {error} is the underlying error text.
-msgid "Glotze couldn't initialise its HTTP client: {error}"
-msgstr "Glotze konnte den HTTP-Client nicht initialisieren: {error}"
-
-#. Loading state title (empty query)
-msgid "Latest episodes"
-msgstr "Neueste Sendungen"
-
-#. Loading state subtitle (empty query)
-msgid "Loading the most recent broadcasts…"
-msgstr "Neueste Sendungen werden geladen …"
-
-#. Loading state title (with query)
-msgid "Searching…"
-msgstr "Suche läuft …"
-
-#. Loading state subtitle. {query} is the search term, framed in curly quotes.
-msgid "Looking for “{query}”"
-msgstr "Suche nach „{query}“"
-
-#. Error state title after a failed search
-msgid "Search failed"
-msgstr "Suche fehlgeschlagen"
-
-#. Error state body after a failed search
-msgid "Couldn’t reach mediathekviewweb.de — check your connection."
-msgstr "mediathekviewweb.de ist nicht erreichbar – prüfe deine Internetverbindung."
-
-#. Toast shown alongside the error state. {error} is the underlying error.
-msgid "Search failed: {error}"
-msgstr "Suche fehlgeschlagen: {error}"
-
-#. Toast when the search worker itself panicked
-msgid "Internal error during search"
-msgstr "Interner Fehler bei der Suche"
-
-#. Download lifecycle toasts. {title} is the episode title, {reason} the error.
-msgid "Download started: {title}"
-msgstr "Download gestartet: {title}"
-
-msgid "Download finished: {title}"
-msgstr "Download abgeschlossen: {title}"
-
-msgid "Download cancelled: {title}"
-msgstr "Download abgebrochen: {title}"
-
-msgid "Download failed: {title} ({reason})"
-msgstr "Download fehlgeschlagen: {title} ({reason})"
-
-msgid "Could not start download (URL missing)."
-msgstr "Download konnte nicht gestartet werden (URL fehlt)."
-
-# ---------------------------------------------------------------------------
-# src/ui/row.rs
-# ---------------------------------------------------------------------------
-
-#. Tooltip on the date column
-msgid "Broadcast date"
-msgstr "Sendedatum"
-
-#. Tooltip on the time column. Keep "Europe/Berlin" — it's an IANA timezone id.
-msgid "Broadcast start time (Europe/Berlin)"
-msgstr "Sendebeginn (Europe/Berlin)"
-
-#. Tooltip on the duration column
-msgid "Duration"
-msgstr "Dauer"
-
-#. Website button on a result row
-msgid "Website"
-msgstr "Website"
-
-#. Website button tooltip
-msgid "Open this episode on the broadcaster's page"
-msgstr "Diese Sendung auf der Senderseite öffnen"
-
-#. Quality picker tooltip
-msgid "Choose video quality"
-msgstr "Videoqualität wählen"
-
-#. Quality picker labels. "HD" is technical and left untranslated upstream.
-msgid "Low"
-msgstr "Niedrig"
-
-msgid "Medium"
-msgstr "Mittel"
-
-#. Action button: initial state (download is a verb here)
-msgid "Download"
-msgstr "Herunterladen"
-
-#. Action button: no playable URL for any quality
-msgid "Not available"
-msgstr "Nicht verfügbar"
-
-#. Action button: download in progress
-msgid "Cancel"
-msgstr "Abbrechen"
-
-#. Action button: download completed (verb — opens the file)
-msgid "Open"
-msgstr "Öffnen"
-
-#. Action button: previous attempt failed
-msgid "Retry"
-msgstr "Erneut versuchen"
-
-#. Status icon tooltip on success
-msgid "Download complete"
-msgstr "Download abgeschlossen"
-
-#. Row subtitle + status icon tooltip on a failed download. {reason} is the cause.
-msgid "Download failed: {reason}"
-msgstr "Download fehlgeschlagen: {reason}"
+#: src/ui/downloads_page.rs:60
+msgid ""
+"Pick an episode on the Search page and choose a quality. Downloads are saved "
+"to {dir}."
+msgstr ""
+"Wähle auf der Suchseite eine Sendung und eine Qualität. Downloads werden in "
+"{dir} gespeichert."
 
 # ---------------------------------------------------------------------------
 # src/ui/results_page.rs
 # ---------------------------------------------------------------------------
-
-#. Empty state title (search page idle)
+#: src/ui/downloads_page.rs:66 src/ui/results_page.rs:57
 msgid "Search a Mediathek"
 msgstr "Mediathek durchsuchen"
 
-#. Empty state body (search page idle)
+#: src/ui/downloads_page.rs:121
+msgid "{size} downloaded"
+msgstr "{size} heruntergeladen"
+
+#: src/ui/downloads_page.rs:129
+msgid "Completed · {size} · {path}"
+msgstr "Abgeschlossen · {size} · {path}"
+
+#: src/ui/downloads_page.rs:141
+msgid "Failed: {reason}"
+msgstr "Fehlgeschlagen: {reason}"
+
+#: src/ui/downloads_page.rs:146
+msgid "Cancelled"
+msgstr "Abgebrochen"
+
+#: src/ui/downloads_page.rs:155
+msgid "Starting…"
+msgstr "Wird gestartet …"
+
+#: src/ui/downloads_page.rs:177
+msgid "Show in Files"
+msgstr "In Dateien anzeigen"
+
+#: src/ui/results_page.rs:59
 msgid "Type into the search field above to find episodes."
 msgstr "Tippe oben ins Suchfeld, um Sendungen zu finden."
 
-#. Empty state title (search returned nothing)
+#: src/ui/results_page.rs:121
 msgid "No results"
 msgstr "Keine Treffer"
 
-#. Empty state body (search returned nothing)
+#: src/ui/results_page.rs:122
 msgid "No episodes matched your search."
 msgstr "Keine Sendungen passen zur Suche."
 
 # ---------------------------------------------------------------------------
-# src/ui/downloads_page.rs
+# src/ui/row.rs
 # ---------------------------------------------------------------------------
+#: src/ui/row.rs:112
+msgid "Broadcast date"
+msgstr "Sendedatum"
 
-#. Empty state title (no downloads yet)
-msgid "No downloads yet"
-msgstr "Noch keine Downloads"
+#: src/ui/row.rs:120
+msgid "Broadcast start time (Europe/Berlin)"
+msgstr "Sendebeginn (Europe/Berlin)"
 
-#. Empty state body. {dir} is the downloads folder path.
-msgid ""
-"Pick an episode on the Search page and choose a quality. Downloads are "
-"saved to {dir}."
+#: src/ui/row.rs:133
+msgid "Duration"
+msgstr "Dauer"
+
+#: src/ui/row.rs:184
+msgid "Website"
+msgstr "Website"
+
+#: src/ui/row.rs:189
+msgid "Open this episode on the broadcaster's page"
+msgstr "Diese Sendung auf der Senderseite öffnen"
+
+#: src/ui/row.rs:210
+msgid "Choose video quality"
+msgstr "Videoqualität wählen"
+
+#: src/ui/row.rs:212
+msgid "Low"
+msgstr "Niedrig"
+
+#: src/ui/row.rs:213
+msgid "Medium"
+msgstr "Mittel"
+
+#: src/ui/row.rs:239 src/ui/row.rs:365
+msgid "Download"
+msgstr "Herunterladen"
+
+#: src/ui/row.rs:247 src/ui/row.rs:367
+msgid "Not available"
+msgstr "Nicht verfügbar"
+
+#: src/ui/row.rs:376
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: src/ui/row.rs:385
+msgid "Open"
+msgstr "Öffnen"
+
+#: src/ui/row.rs:392
+msgid "Retry"
+msgstr "Erneut versuchen"
+
+#: src/ui/row.rs:440
+msgid "Download complete"
+msgstr "Download abgeschlossen"
+
+#: src/ui/row.rs:448
+msgid "Download failed: {reason}"
+msgstr "Download fehlgeschlagen: {reason}"
+
+# ---------------------------------------------------------------------------
+# src/window.rs
+# ---------------------------------------------------------------------------
+#: src/window.rs:36
+msgid "Search title or topic…"
+msgstr "Titel oder Thema suchen …"
+
+#: src/window.rs:43
+msgid "Newest first"
+msgstr "Neueste zuerst"
+
+#: src/window.rs:47
+msgid "Oldest first"
+msgstr "Älteste zuerst"
+
+#: src/window.rs:51
+msgid "Longest first"
+msgstr "Längste zuerst"
+
+#: src/window.rs:55
+msgid "Shortest first"
+msgstr "Kürzeste zuerst"
+
+#: src/window.rs:60
+msgid "Sort results"
+msgstr "Ergebnisse sortieren"
+
+#: src/window.rs:89
+msgid "Search"
+msgstr "Suche"
+
+#: src/window.rs:95
+msgid "Downloads"
+msgstr "Downloads"
+
+#: src/window.rs:147
+msgid "Network unavailable"
+msgstr "Netzwerk nicht verfügbar"
+
+#: src/window.rs:148
+msgid "Glotze couldn't initialise its HTTP client: {error}"
+msgstr "Glotze konnte den HTTP-Client nicht initialisieren: {error}"
+
+#: src/window.rs:170
+msgid "About Glotze"
+msgstr "Über Glotze"
+
+#: src/window.rs:309
+msgid "Download finished: {title}"
+msgstr "Download abgeschlossen: {title}"
+
+#: src/window.rs:314
+msgid "Download failed: {title} ({reason})"
+msgstr "Download fehlgeschlagen: {title} ({reason})"
+
+#: src/window.rs:321
+msgid "Download cancelled: {title}"
+msgstr "Download abgebrochen: {title}"
+
+#: src/window.rs:352
+msgid "Download started: {title}"
+msgstr "Download gestartet: {title}"
+
+#: src/window.rs:359
+msgid "Could not start download (URL missing)."
+msgstr "Download konnte nicht gestartet werden (URL fehlt)."
+
+#: src/window.rs:505
+msgid "Latest episodes"
+msgstr "Neueste Sendungen"
+
+#: src/window.rs:506
+msgid "Loading the most recent broadcasts…"
+msgstr "Neueste Sendungen werden geladen …"
+
+#: src/window.rs:510
+msgid "Searching…"
+msgstr "Suche läuft …"
+
+#: src/window.rs:511
+msgid "Looking for “{query}”"
+msgstr "Suche nach „{query}“"
+
+#: src/window.rs:535
+msgid "Search failed"
+msgstr "Suche fehlgeschlagen"
+
+#: src/window.rs:536
+msgid "Couldn’t reach mediathekviewweb.de — check your connection."
 msgstr ""
-"Wähle auf der Suchseite eine Sendung und eine Qualität. Downloads werden "
-"in {dir} gespeichert."
+"mediathekviewweb.de ist nicht erreichbar – prüfe deine Internetverbindung."
 
-#. Row subtitle while downloading with unknown total size. {size} is the
-#. bytes received so far (human-readable, e.g. "4.2 MB").
-msgid "{size} downloaded"
-msgstr "{size} heruntergeladen"
+#: src/window.rs:539
+msgid "Search failed: {error}"
+msgstr "Suche fehlgeschlagen: {error}"
 
-#. Row subtitle on completion. {size} is total size, {path} the file path.
-msgid "Completed · {size} · {path}"
-msgstr "Abgeschlossen · {size} · {path}"
-
-#. Row subtitle when the download failed. {reason} is the underlying error.
-msgid "Failed: {reason}"
-msgstr "Fehlgeschlagen: {reason}"
-
-#. Row subtitle when the user cancelled the download
-msgid "Cancelled"
-msgstr "Abgebrochen"
-
-#. Row subtitle right after a download is enqueued
-msgid "Starting…"
-msgstr "Wird gestartet …"
-
-#. Reveal-in-file-manager button tooltip
-msgid "Show in Files"
-msgstr "In Dateien anzeigen"
+#: src/window.rs:544
+msgid "Internal error during search"
+msgstr "Interner Fehler bei der Suche"
