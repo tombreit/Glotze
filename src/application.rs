@@ -70,6 +70,7 @@ fn show_about(app: &adw::Application) {
         .build();
 
     dialog.add_link(&gettext("Repository"), "https://github.com/tombreit/Glotze");
+    dialog.add_link(&gettext("Donate"), "https://ko-fi.com/thmsde");
 
     dialog.add_acknowledgement_section(
         Some(&gettext("Stands on the shoulders of")),
