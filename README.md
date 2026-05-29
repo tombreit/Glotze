@@ -24,6 +24,10 @@ flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
 
+To force a specific UI language, pass `LANGUAGE` into the sandbox — e.g.
+`flatpak run --env=LANGUAGE=C io.github.tombreit.Glotze` for English (the
+source strings) or `--env=LANGUAGE=de` for German.
+
 ---
 
 ## Quick start (development)
