@@ -118,11 +118,20 @@ logic keys on the tag name).
 
 ## Submitting to Flathub (first time)
 
+1. **Generate the submission files** from the latest release tag:
+
+   ```sh
+   ./scripts/gen-flathub-manifest.sh        # defaults to the most recent tag
+   ```
+
+   This writes `build-aux/flathub/` (git-ignored) containing the two files the PR
+   needs at its repo root: the manifest — same as ours but with the working-tree
+   `dir` source rewritten to a `git` source pinned to the tag **and its commit** —
+   plus a copy of `cargo-sources.json`. Pass an explicit tag to pin an older one
+   (`./scripts/gen-flathub-manifest.sh vX.Y.Z`).
 1. **Open the PR** against <https://github.com/flathub/flathub> on the `new-pr`
    branch, in a branch named after the app ID, adding at the repo root:
-   - the manifest — **with the `dir` source swapped for a `git` source pinned to
-     the release tag** (see *Maintenance loop*); Flathub has no working tree.
-   - `cargo-sources.json`
+   - the generated manifest and `cargo-sources.json` from `build-aux/flathub/`
    - optionally a `flathub.json` (Flathub builds x86_64 + aarch64 by default).
 1. The Flathub bot builds and lints your manifest; a human reviewer checks the
    `finish-args` and metainfo. On merge, `flathub/io.github.tombreit.Glotze` is
@@ -133,9 +142,15 @@ logic keys on the tag name).
 ## Maintenance loop
 
 Shipping an update is **cut a release** (above), then propagate the tag to the
-Flathub repo: point the manifest's source at the new tag, drop in the matching
-`cargo-sources.json`, and push to `master` — Flathub builds and publishes within
-the hour. The source stanza is the only thing that differs between the two repos:
+Flathub repo: re-run the generator and copy its output across.
+
+```sh
+./scripts/gen-flathub-manifest.sh        # re-pins build-aux/flathub/ to the new tag
+```
+
+Copy both files from `build-aux/flathub/` into the Flathub repo and push to
+`master` — Flathub builds and publishes within the hour. The source stanza is the
+only thing that differs between the two repos, and the generator handles it:
 
 ```yaml
 # in THIS repo (builds the working tree)   |   # in the Flathub repo (reproducible)
@@ -143,11 +158,12 @@ sources:                                   |   sources:
   - type: dir                              |     - type: git
     path: ..                               |       url: https://github.com/tombreit/Glotze.git
                                            |       tag: vX.Y.Z
+                                           |       commit: <tag's commit sha>
 ```
 
-Regenerate `cargo-sources.json` only if dependencies changed since the previous
-release; copy the current file alongside the manifest either way. Pin to a **tag**,
-never `main`.
+`scripts/update-cargo-sources.sh` only needs re-running when dependencies changed
+since the previous release; the generator copies whatever `cargo-sources.json` is
+current either way. The source is always pinned to a **tag + commit**, never `main`.
 
 ---
 

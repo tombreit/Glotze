@@ -18,6 +18,12 @@
 # Output of build-aux/test-live.sh (per-run logs + screenshots).
 /test-live-out/
 
+# Generated Flathub submission manifest + cargo-sources copy, pinned to a release
+# tag by scripts/gen-flathub-manifest.sh. Transient: regenerate per release and
+# copy into the flathub/<app-id> repo (see PUBLISHING.md). The script is the
+# source of truth, not this output.
+/build-aux/flathub/
+
 # rustfmt backup files (when invoked with --backup).
 *.rs.bk
 
