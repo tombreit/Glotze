@@ -5,9 +5,6 @@ sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 command: glotze
-# Branch built into the OSTree repo. Flathub convention is `stable` for
-# releases; `flatpak build-bundle … stable` then matches.
-default-branch: stable
 
 finish-args:
   - --share=ipc
