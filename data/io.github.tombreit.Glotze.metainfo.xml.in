@@ -62,6 +62,9 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.0.16" date="2026-06-01">
+      <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.16</url>
+    </release>
     <release version="0.0.15" date="2026-06-01">
       <url>https://github.com/tombreit/Glotze/releases/tag/v0.0.15</url>
     </release>
