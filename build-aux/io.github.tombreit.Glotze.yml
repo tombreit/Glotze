@@ -5,6 +5,10 @@ sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 command: glotze
+# Build the `stable` branch (matching the Flathub manifest) so local
+# `flatpak-builder --install` updates the one stable install instead of
+# creating a separate `master` ref.
+default-branch: stable
 
 finish-args:
   - --share=ipc
