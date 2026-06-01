@@ -40,14 +40,10 @@ jobs:
           bundle: glotze.flatpak
           manifest-path: build-aux/io.github.tombreit.Glotze.yml
           cache-key: flatpak-builder-${{ hashFiles('Cargo.lock', 'build-aux/io.github.tombreit.Glotze.yml') }}
-          # The action builds and bundles under this branch name (passed as both
-          # --default-branch to flatpak-builder and the build-bundle ref).
           # Pinned to `stable` so the locally produced bundle's ref matches Flathub's `stable` branch.
           branch: stable
           # Ref: https://docs.flatpak.org/en/latest/flatpak-builder-command-reference.html
           mirror-screenshots-url: https://dl.flathub.org/media
-          # Runs `meson test` inside the sandbox: appstreamcli validate +
-          # desktop-file-validate (the targets in data/meson.build).
           run-tests: true
 
       # Lint the built OSTree repo (the same check Flathub runs on submission).
