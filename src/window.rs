@@ -137,7 +137,13 @@ impl AppWindow {
                     sort.get(),
                     Rc::clone(&last_results),
                 );
-                wire_row_action(&results, &toast_overlay, &window, Rc::clone(&manager));
+                wire_row_action(
+                    &results,
+                    &downloads,
+                    &toast_overlay,
+                    &window,
+                    Rc::clone(&manager),
+                );
                 wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
             }
             Err(e) => {
@@ -341,15 +347,26 @@ fn wire_progress_consumer(
 
 fn wire_row_action(
     results: &Rc<ResultsPage>,
+    downloads: &Rc<DownloadsPage>,
     toast_overlay: &adw::ToastOverlay,
     parent: &adw::ApplicationWindow,
     manager: Rc<Manager>,
 ) {
+    // The Downloads page mirrors every enqueued show as its own always-expanded
+    // row, and lets that row drive Cancel/Open directly; wire it first, using
+    // Weak captures so its stored closure can't keep the manager or window alive
+    // (the progress consumer relies on the manager dropping at window close).
+    wire_downloads_action(downloads, parent, &manager);
+
     let toast_overlay = toast_overlay.clone();
     let parent = parent.clone();
     // Weak ref breaks the self-cycle: this closure is installed on results,
     // so a strong ref here would make ResultsPage permanently un-freeable.
     let results_weak = Rc::downgrade(results);
+    // Strong clone: the closure pre-builds a download row at enqueue time. The
+    // page itself is owned by the progress-consumer future, so this strong ref
+    // is released when `results` drops at window close.
+    let downloads = Rc::clone(downloads);
 
     results.connect_action(move |show, action| match action {
         RowAction::Download(quality) | RowAction::Retry(quality) => {
@@ -359,6 +376,9 @@ fn wire_row_action(
                     {
                         results.track_download(info.id, sid);
                     }
+                    // Mirror the show onto the Downloads page as an
+                    // always-expanded row keyed by the download id.
+                    downloads.add_download(info.id, &show);
                     let toast = adw::Toast::builder()
                         .title(gettext("Download started: {title}").replace("{title}", &info.title))
                         .timeout(3)
@@ -379,14 +399,41 @@ fn wire_row_action(
                 manager.cancel(id);
             }
         }
-        RowAction::Open(path) => {
-            let file = gio::File::for_path(&path);
-            let launcher = gtk::FileLauncher::new(Some(&file));
-            launcher.launch(Some(&parent), gio::Cancellable::NONE, move |result| {
-                if let Err(e) = result {
-                    log::error!("failed to open file: {e}");
-                }
-            });
+        RowAction::Open(path) => open_in_files(Some(&parent), &path),
+    });
+}
+
+/// Wire the Cancel/Open actions emitted by the Downloads page's rows. The row id
+/// is the download id, so Cancel maps straight onto the manager. Captures are
+/// Weak so this closure — stored on the long-lived page — never keeps the
+/// manager or window from dropping at close.
+fn wire_downloads_action(
+    downloads: &Rc<DownloadsPage>,
+    parent: &adw::ApplicationWindow,
+    manager: &Rc<Manager>,
+) {
+    let manager_weak = Rc::downgrade(manager);
+    let parent_weak = parent.downgrade();
+    downloads.connect_action(move |id, action| match action {
+        RowAction::Cancel => {
+            if let Some(manager) = manager_weak.upgrade() {
+                manager.cancel(id);
+            }
+        }
+        RowAction::Open(path) => open_in_files(parent_weak.upgrade().as_ref(), &path),
+        // A download row never offers the idle Download/Retry trigger.
+        RowAction::Download(_) | RowAction::Retry(_) => {}
+    });
+}
+
+/// Reveal a finished download in the file manager, selecting the file. Under
+/// Flatpak this goes through the `OpenURI` portal, so no extra filesystem
+/// permission is required.
+fn open_in_files(parent: Option<&adw::ApplicationWindow>, path: &std::path::Path) {
+    let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(path)));
+    launcher.open_containing_folder(parent, gio::Cancellable::NONE, |res| {
+        if let Err(e) = res {
+            log::warn!("could not reveal download in file manager: {e}");
         }
     });
 }

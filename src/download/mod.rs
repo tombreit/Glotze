@@ -38,7 +38,7 @@ pub struct EnqueueInfo {
 
 /// Worker outcome that the spawning closure maps into a `Progress` event.
 enum Outcome {
-    Done { bytes_total: u64, path: PathBuf },
+    Done { path: PathBuf },
     Cancelled,
 }
 
@@ -79,8 +79,8 @@ impl Manager {
             let _ = tx.send_blocking(Progress::running(id, title.clone(), 0, 0));
 
             match download_to_disk(id, &title, &url, &tx, &cancel) {
-                Ok(Outcome::Done { bytes_total, path }) => {
-                    let _ = tx.send_blocking(Progress::done(id, title, bytes_total, path));
+                Ok(Outcome::Done { path }) => {
+                    let _ = tx.send_blocking(Progress::done(id, title, path));
                 }
                 Ok(Outcome::Cancelled) => {
                     let _ = tx.send_blocking(Progress::cancelled(id, title));
@@ -180,10 +180,7 @@ fn download_to_disk(
         final_path.display(),
         done
     );
-    Ok(Outcome::Done {
-        bytes_total: done,
-        path: final_path,
-    })
+    Ok(Outcome::Done { path: final_path })
 }
 
 fn cleanup_partial(path: &Path) {

@@ -10,7 +10,7 @@ pub struct Progress {
 #[derive(Debug, Clone)]
 pub enum State {
     Running { bytes_done: u64, bytes_total: u64 },
-    Done { bytes_total: u64, path: PathBuf },
+    Done { path: PathBuf },
     Failed { reason: String },
     Cancelled,
 }
@@ -26,11 +26,11 @@ impl Progress {
             },
         }
     }
-    pub fn done(id: u64, title: String, bytes_total: u64, path: PathBuf) -> Self {
+    pub fn done(id: u64, title: String, path: PathBuf) -> Self {
         Self {
             id,
             title,
-            state: State::Done { bytes_total, path },
+            state: State::Done { path },
         }
     }
     pub fn failed(id: u64, title: String, reason: String) -> Self {

@@ -48,6 +48,16 @@ enum ActionState {
     Failed,
 }
 
+/// Where a row lives. A `Search` row is collapsible and offers a quality picker
+/// plus a Download button; a `Download` row (on the Downloads page) is the same
+/// widget but permanently expanded with the quality picker hidden — the download
+/// is already enqueued, so only progress and the Cancel/Open/Retry button remain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RowMode {
+    Search,
+    Download,
+}
+
 type ActionHandler = Rc<RefCell<Option<Box<dyn Fn(RowAction)>>>>;
 
 /// A search-result row built on `AdwExpanderRow`: the logo is a prefix; the
@@ -77,7 +87,19 @@ pub struct ResultRow {
 }
 
 impl ResultRow {
+    /// A collapsible search-result row with a quality picker and Download button.
     pub fn new(show: &Show, cols: &ColumnGroups) -> Rc<Self> {
+        Self::build(show, cols, RowMode::Search)
+    }
+
+    /// The same row, configured for the Downloads page: permanently expanded,
+    /// no quality picker, and starting in the Downloading state so the morphing
+    /// button shows Cancel until the download finishes.
+    pub fn new_download(show: &Show, cols: &ColumnGroups) -> Rc<Self> {
+        Self::build(show, cols, RowMode::Download)
+    }
+
+    fn build(show: &Show, cols: &ColumnGroups, mode: RowMode) -> Rc<Self> {
         let expander = adw::ExpanderRow::new();
 
         // Series is the headline; the episode sits below it. The channel is
@@ -228,8 +250,11 @@ impl ResultRow {
                 break;
             }
         }
-        // Only render the picker when there's an actual choice to offer.
-        if quality_group.n_toggles() > 0 {
+        // Only render the picker when there's an actual choice to offer — and
+        // only on the Search page. A Download row has already committed to a
+        // quality, so the picker is built (keeping the field valid) but left
+        // unparented.
+        if mode == RowMode::Search && quality_group.n_toggles() > 0 {
             actions.append(&quality_group);
         }
 
@@ -307,6 +332,15 @@ impl ResultRow {
             });
         }
 
+        if mode == RowMode::Download {
+            // The download is already enqueued, so the row opens in the
+            // Downloading state (button shows Cancel) and starts expanded so the
+            // metadata and progress are visible at a glance. The chevron keeps
+            // its normal collapse/expand behaviour from here.
+            this.set_action_state(ActionState::Downloading);
+            this.expander.set_expanded(true);
+        }
+
         this
     }
 
@@ -380,8 +414,9 @@ impl ResultRow {
                 self.set_quality_group_sensitive(false);
             }
             ActionState::Done(_) => {
-                self.action_content
-                    .set_icon_name("media-playback-start-symbolic");
+                // Reveals the file in the file manager (see `open_in_files`), so
+                // the folder icon — not a play icon — matches what happens.
+                self.action_content.set_icon_name("folder-open-symbolic");
                 self.action_content.set_label(&gettext("Open"));
                 self.action_button.set_css_classes(&["pill"]);
                 self.action_button.set_sensitive(true);

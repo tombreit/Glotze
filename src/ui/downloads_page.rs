@@ -1,29 +1,28 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 
-use adw::prelude::*;
 use gettextrs::gettext;
-use gtk::gio;
 
+use crate::api::models::Show;
 use crate::download::download_dir_display;
-use crate::download::progress::{Progress, State};
+use crate::download::progress::Progress;
+use crate::ui::row::{ColumnGroups, ResultRow, RowAction};
+
+type ActionHandler = Rc<RefCell<Option<Box<dyn Fn(u64, RowAction)>>>>;
 
 pub struct DownloadsPage {
     root: gtk::Stack,
     list: gtk::ListBox,
-    rows: Rc<RefCell<HashMap<u64, RowWidgets>>>,
-}
-
-struct RowWidgets {
-    row: adw::ActionRow,
-    bar: gtk::ProgressBar,
-    icon: gtk::Image,
-    open_btn: gtk::Button,
-    /// Filled in once the download reaches `Done`; read by the open-folder
-    /// button's click handler.
-    path: Rc<RefCell<Option<PathBuf>>>,
+    /// `download_id` -> the always-expanded row showing that download.
+    rows: Rc<RefCell<HashMap<u64, Rc<ResultRow>>>>,
+    /// Column `SizeGroup`s shared by every download row so the trailing
+    /// Date / Time / Duration labels line up. Created once and reused: downloads
+    /// accumulate (the list is never bulk-cleared), so one long-lived set fits
+    /// the page lifetime.
+    col_groups: ColumnGroups,
+    /// User-supplied per-row action handler, keyed by `download_id`.
+    on_action: ActionHandler,
 }
 
 impl DownloadsPage {
@@ -81,6 +80,8 @@ impl DownloadsPage {
             root,
             list,
             rows: Rc::new(RefCell::new(HashMap::new())),
+            col_groups: ColumnGroups::new(),
+            on_action: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -88,140 +89,44 @@ impl DownloadsPage {
         &self.root
     }
 
-    /// Apply a progress event from the download manager.
-    pub fn apply(&self, p: Progress) {
-        // Promote to "list" view as soon as any download appears.
-        self.root.set_visible_child_name("list");
-
+    /// Pre-build the always-expanded row for a freshly enqueued download. Called
+    /// at enqueue time (with the originating `Show`, which carries the metadata a
+    /// `ResultRow` needs); subsequent `apply` calls drive its progress by id.
+    pub fn add_download(&self, download_id: u64, show: &Show) {
         let mut rows = self.rows.borrow_mut();
-        let entry = rows.entry(p.id).or_insert_with(|| self.build_row(&p));
-        entry
-            .row
-            .set_title(&gtk::glib::markup_escape_text(&p.title));
-        match &p.state {
-            State::Running {
-                bytes_done,
-                bytes_total,
-            } => {
-                if *bytes_total > 0 {
-                    let frac = (*bytes_done as f64 / *bytes_total as f64).clamp(0.0, 1.0);
-                    entry.bar.set_fraction(frac);
-                    // "12 MB / 34 MB · 35%" — the structure is universal across
-                    // locales (numbers, units, percent sign), so we keep the
-                    // format string out of the catalogue.
-                    entry.row.set_subtitle(&format!(
-                        "{} / {} · {:.0}%",
-                        human_bytes(*bytes_done),
-                        human_bytes(*bytes_total),
-                        frac * 100.0
-                    ));
-                } else {
-                    entry.bar.pulse();
-                    entry.row.set_subtitle(
-                        &gettext("{size} downloaded").replace("{size}", &human_bytes(*bytes_done)),
-                    );
-                }
-                entry.icon.set_icon_name(Some("folder-download-symbolic"));
-            }
-            State::Done { bytes_total, path } => {
-                entry.bar.set_fraction(1.0);
-                entry.row.set_subtitle(
-                    &gettext("Completed · {size} · {path}")
-                        .replace("{size}", &human_bytes(*bytes_total))
-                        .replace("{path}", &path.display().to_string()),
-                );
-                entry.icon.set_icon_name(Some("object-select-symbolic"));
-                *entry.path.borrow_mut() = Some(path.clone());
-                entry.open_btn.set_visible(true);
-            }
-            State::Failed { reason } => {
-                entry.bar.set_fraction(0.0);
-                entry
-                    .row
-                    .set_subtitle(&gettext("Failed: {reason}").replace("{reason}", reason));
-                entry.icon.set_icon_name(Some("dialog-error-symbolic"));
-            }
-            State::Cancelled => {
-                entry.bar.set_fraction(0.0);
-                entry.row.set_subtitle(&gettext("Cancelled"));
-                entry.icon.set_icon_name(Some("process-stop-symbolic"));
-            }
+        if rows.contains_key(&download_id) {
+            return;
         }
-    }
 
-    fn build_row(&self, p: &Progress) -> RowWidgets {
-        let row = adw::ActionRow::builder()
-            .title(gtk::glib::markup_escape_text(&p.title))
-            .subtitle(gettext("Starting…"))
-            .build();
+        let row = ResultRow::new_download(show, &self.col_groups);
 
-        let icon = gtk::Image::from_icon_name("folder-download-symbolic");
-        row.add_prefix(&icon);
-
-        let bar = gtk::ProgressBar::builder()
-            .fraction(0.0)
-            .valign(gtk::Align::Center)
-            // A progress bar has no natural width; without a hint it collapses
-            // to a few pixels in a row suffix. This is genuine sizing, not the
-            // margin/indent guesswork we removed elsewhere.
-            .width_request(140)
-            .build();
-        row.add_suffix(&bar);
-
-        // Reveal-in-file-manager affordance. Hidden until the download
-        // completes (see the `Done` arm of `apply`); added last so it sits at
-        // the trailing edge of the row.
-        let path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
-        let open_btn = gtk::Button::builder()
-            .icon_name("folder-open-symbolic")
-            .tooltip_text(gettext("Show in Files"))
-            .valign(gtk::Align::Center)
-            .visible(false)
-            .css_classes(["flat"])
-            .build();
-        open_btn.connect_clicked({
-            let path = path.clone();
-            move |btn| {
-                let Some(file_path) = path.borrow().clone() else {
-                    return;
-                };
-                // `open_containing_folder` opens the parent folder and selects
-                // the file. Under Flatpak it goes through the OpenURI portal,
-                // so no extra filesystem permission is required.
-                let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(&file_path)));
-                let window = btn.root().and_downcast::<gtk::Window>();
-                launcher.open_containing_folder(window.as_ref(), gio::Cancellable::NONE, |res| {
-                    if let Err(e) = res {
-                        log::warn!("could not reveal download in file manager: {e}");
-                    }
-                });
+        let on_action = Rc::clone(&self.on_action);
+        row.connect_action(move |action| {
+            if let Some(cb) = on_action.borrow().as_ref() {
+                cb(download_id, action);
             }
         });
-        row.add_suffix(&open_btn);
 
-        self.list.append(&row);
-        RowWidgets {
-            row,
-            bar,
-            icon,
-            open_btn,
-            path,
+        self.list.append(row.widget());
+        rows.insert(download_id, row);
+        drop(rows);
+
+        // Promote to "list" view as soon as the first download appears.
+        self.root.set_visible_child_name("list");
+    }
+
+    /// Apply a progress event from the download manager to its row.
+    pub fn apply(&self, p: Progress) {
+        self.root.set_visible_child_name("list");
+        if let Some(row) = self.rows.borrow().get(&p.id) {
+            row.apply_progress(&p.state);
         }
     }
-}
 
-fn human_bytes(n: u64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-    const GB: f64 = MB * 1024.0;
-    let n = n as f64;
-    if n >= GB {
-        format!("{:.2} GB", n / GB)
-    } else if n >= MB {
-        format!("{:.1} MB", n / MB)
-    } else if n >= KB {
-        format!("{:.0} KB", n / KB)
-    } else {
-        format!("{n:.0} B")
+    pub fn connect_action<F>(&self, callback: F)
+    where
+        F: Fn(u64, RowAction) + 'static,
+    {
+        *self.on_action.borrow_mut() = Some(Box::new(callback));
     }
 }
