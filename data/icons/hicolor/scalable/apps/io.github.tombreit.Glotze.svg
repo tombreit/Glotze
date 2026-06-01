@@ -3,25 +3,6 @@
  <rect width="128" height="128" rx="14" fill="#0d0d0d"/>
  <rect x="6" y="6" width="116" height="116" rx="8"/>
  <svg x="8" y="28" width="112" height="70" preserveAspectRatio="xMidYMid slice" version="1.1" viewBox="0 0 1680 1050">
-  <defs>
-   <pattern id="m" patternTransform="matrix(-2.1381 0 0 34.246 708.44 454.96)" xlink:href="#a"/>
-   <pattern id="f" patternTransform="translate(-1.055 -1.642) scale(10.023)" xlink:href="#b"/>
-   <pattern id="b" width="2" height="1" patternTransform="scale(10)" patternUnits="userSpaceOnUse">
-    <path d="M0-.5h1v2H0z"/>
-   </pattern>
-   <pattern id="a" patternTransform="matrix(3.3986 0 0 22.335 555.44 454.96)" xlink:href="#c"/>
-   <pattern id="c" width="2" height="1" patternTransform="scale(10)" patternUnits="userSpaceOnUse">
-    <path d="M0-.5h1v2H0z"/>
-   </pattern>
-   <pattern id="o" patternTransform="matrix(-.96284 0 0 -1.4943 890.37 563.66)" xlink:href="#d"/>
-   <pattern id="d" width="2" height="1" patternTransform="scale(10)" patternUnits="userSpaceOnUse">
-    <path d="M0-.5h1v2H0z"/>
-   </pattern>
-   <pattern id="p" patternTransform="matrix(.6358 0 0 2.2532 1042.6 563.56)" xlink:href="#e"/>
-   <pattern id="e" width="2" height="1" patternTransform="scale(10)" patternUnits="userSpaceOnUse">
-    <path d="M0-.5h1v2H0z"/>
-   </pattern>
-  </defs>
   <g transform="translate(0 -2.362)">
    <path d="M1560.5 947.17h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5z" style="fill-rule:evenodd;fill:gray;stroke-linecap:square;stroke-width:1.541;stroke:#fff"/>
    <path d="M1560.5 641.86h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5zm0-76.33h75.847v76.329H1560.5z" style="fill-rule:evenodd;fill:gray;stroke-linecap:square;stroke-width:1.541;stroke:#fff"/>
@@ -221,18 +202,11 @@
    <path transform="matrix(.57491 0 0 1 1654.9 0)" d="m-32.242 107.55h75.847v76.329h-75.847z" style="fill-rule:evenodd;fill:#fff"/>
    <path transform="matrix(.57491 0 0 1 1654.9 0)" d="m-32.242 31.225h75.847v76.329h-75.847z" style="fill-rule:evenodd"/>
    <path d="m1251.4 718.18c-.858 1.845-1.649 3.731-2.531 5.563a451.4 451.4 0 01-32.687 56.874c-3.19 4.723-6.545 9.314-9.906 13.906h-63.33v-76.343z" style="fill-rule:evenodd;fill:#fff" sodipodi0:nodetypes="csssscccc"/>
-   <path id="g" d="m461.35 565.18h153v153h-153z" style="fill:url(#f);stroke-width:1.0023"/>
-   <use id="h" xlink:href="#g"/>
-   <use id="i" xlink:href="#h"/>
-   <use id="j" xlink:href="#i"/>
-   <use id="k" xlink:href="#j"/>
-   <use xlink:href="#k"/>
-   <path id="l" d="m611.8 565.18h153v153h-153z" style="fill:url(#a);stroke-width:.33403"/>
-   <use xlink:href="#l"/>
-   <path id="n" d="m764.8 565.18h153v153h-153z" style="fill:url(#m);stroke-width:.33403"/>
-   <use xlink:href="#n"/>
-   <path d="m917.8 565.18h153v153h-153z" style="fill:url(#o)"/>
-   <path d="m1070.1 565.09h153v153h-153z" style="fill:url(#p)"/>
+   <path d="m461.35 565.18h153v153h-153z" style="fill:#808080"/>
+   <path d="m611.8 565.18h153v153h-153z" style="fill:#808080"/>
+   <path d="m764.8 565.18h153v153h-153z" style="fill:#808080"/>
+   <path d="m917.8 565.18h153v153h-153z" style="fill:#808080"/>
+   <path d="m1070.1 565.09h153v153h-153z" style="fill:#808080"/>
   </g>
   <path d="M0 0h43.605v28.863H0zm0 1021.1h43.605v28.863H0zm1636.4 0h43.605v28.863H1636.4zm0-1021.1h43.605v28.863H1636.4z" style="fill-rule:evenodd;fill:#fff"/>
  </svg>
