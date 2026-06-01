@@ -29,7 +29,7 @@ install_data(
 )
 
 install_data(
-  '..' / 'COPYING',
+  '..' / 'LICENSE',
   install_dir: datadir / 'licenses' / application_id,
 )
 

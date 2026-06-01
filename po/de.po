@@ -142,11 +142,11 @@ msgstr ""
 #: src/application.rs:66
 msgid ""
 "Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://"
-"eupl.eu/). See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the "
+"eupl.eu/). See the LICENSE file or visit [eupl.eu](https://eupl.eu/) for the "
 "full text."
 msgstr ""
 "Lizenziert unter der [European Union Public Licence v1.2 (EUPL-1.2)](https://"
-"eupl.eu/). Den vollständigen Text findest du in der COPYING-Datei oder unter "
+"eupl.eu/). Den vollständigen Text findest du in der LICENSE-Datei oder unter "
 "[eupl.eu](https://eupl.eu/)."
 
 #: src/application.rs:72

@@ -63,7 +63,7 @@ fn show_about(app: &adw::Application) {
         // Rust sees at runtime — `\<newline>` line-continuation in Rust strips
         // the leading whitespace on the next line, but the C parser keeps it,
         // and that mismatch breaks msgid lookup against the catalogue.
-        .license(gettext("Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). See the COPYING file or visit [eupl.eu](https://eupl.eu/) for the full text."))
+        .license(gettext("Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). See the LICENSE file or visit [eupl.eu](https://eupl.eu/) for the full text."))
         .comments(orientation_text(&glib::markup_escape_text(
             &download_dir_display(),
         )))

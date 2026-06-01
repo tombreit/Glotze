@@ -80,6 +80,6 @@ Glotze stands on the shoulders of:
 ## License
 
 Licensed under the European Union Public Licence v1.2 (EUPL-1.2). The full text
-lives in [`COPYING`](COPYING). The EUPL is copyleft and lists AGPL-3.0, GPL-3.0,
+lives in [`LICENSE`](LICENSE). The EUPL is copyleft and lists AGPL-3.0, GPL-3.0,
 LGPL, MPL-2.0 and others in its compatibility appendix, so derivative works can
 be combined with code under those licenses where needed.
