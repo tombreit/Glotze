@@ -15,9 +15,6 @@
 /repo
 *.flatpak
 
-# Output of build-aux/test-live.sh (per-run logs + screenshots).
-/test-live-out/
-
 # Generated Flathub submission manifest + cargo-sources copy, pinned to a release
 # tag by scripts/gen-flathub-manifest.sh. Transient: regenerate per release and
 # copy into the flathub/<app-id> repo (see PUBLISHING.md). The script is the
@@ -31,7 +28,7 @@
 # The .po files in po/ are the authoritative source for translations.
 /po/glotze.pot
 
-# Editor / OS noise that has no place in the repo.
+# Editor / OS noise
 /.vscode/
 /.idea/
 .DS_Store
