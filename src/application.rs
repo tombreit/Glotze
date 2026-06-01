@@ -67,28 +67,36 @@ fn show_about(app: &adw::Application) {
         // the leading whitespace on the next line, but the C parser keeps it,
         // and that mismatch breaks msgid lookup against the catalogue.
         .license(gettext("Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). See the LICENSE file or visit [eupl.eu](https://eupl.eu/) for the full text."))
-        .comments(welcome_text(&glib::markup_escape_text(
-            &download_dir_display(),
-        )))
+        // The welcome/intro text lives in the dedicated welcome dialog (the
+        // header info button → `app.welcome`); don't duplicate it here.
         .build();
 
     dialog.add_link(&gettext("Repository"), "https://github.com/tombreit/Glotze");
     dialog.add_link(&gettext("Donate"), "https://ko-fi.com/thmsde");
 
-    dialog.add_acknowledgement_section(
-        Some(&gettext("Stands on the shoulders of")),
-        &[
-            "MediathekViewWeb https://github.com/mediathekview/MediathekViewWeb",
-            "MediathekView https://github.com/mediathekview",
-            "Zapp https://github.com/mediathekview/zapp",
-            "gtk-rs https://gtk-rs.org/",
-            "Fractal https://gitlab.gnome.org/World/fractal",
-            "Loupe https://gitlab.gnome.org/GNOME/loupe",
-            "Bustle https://gitlab.gnome.org/World/bustle",
-            "Gitte https://codeberg.org/ckruse/Gitte",
-            "App icon: original test-card rendition, inspired by TestChart, CC0 https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
-        ],
-    );
+    // AdwAboutDialog renders each entry as "Display Name URL", turning the name
+    // into a link to the trailing URL. Only the descriptive name is translated;
+    // the URL is appended separately so it stays out of the catalogue.
+    let acknowledgements = [
+        format!(
+            "{} https://github.com/mediathekview/MediathekViewWeb",
+            gettext("MediathekViewWeb - API provider")
+        ),
+        format!(
+            "{} https://github.com/mediathekview/zapp",
+            gettext("Zapp - Android app that inspired Glotze")
+        ),
+        format!(
+            "{} https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg",
+            gettext("App icon - inspired by TestChart")
+        ),
+        format!(
+            "{} https://gtk-rs.org/",
+            gettext("gtk-rs - Provides bindings for GTK-related libraries")
+        ),
+    ];
+    let acknowledgements: Vec<&str> = acknowledgements.iter().map(String::as_str).collect();
+    dialog.add_acknowledgement_section(None, &acknowledgements);
 
     dialog.present(app.active_window().as_ref());
 }
