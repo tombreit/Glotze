@@ -14,14 +14,15 @@ concurrency:
 
 jobs:
   format:
-    name: cargo fmt
+    name: fmt + potfiles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: ./build-aux/checks.sh cargo_fmt
+      - run: ./build-aux/checks.sh potfiles
 
   clippy-and-test:
     name: clippy + test
@@ -44,6 +45,6 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: cargo clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: ./build-aux/checks.sh cargo_clippy
       - name: cargo test
-        run: cargo test --all-targets --locked
+        run: ./build-aux/checks.sh cargo_test

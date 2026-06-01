@@ -28,10 +28,10 @@ jobs:
         uses: actions/checkout@v6
 
       # Flathub's own linter (bundled in the flathub-infra image). Catches
-      # manifest/permission problems before the slow build. --gha-format turns
-      # findings into inline PR annotations.
+      # manifest/permission problems before the slow build. checks.sh adds
+      # --gha-format under GitHub Actions, turning findings into PR annotations.
       - name: Lint manifest
-        run: flatpak-builder-lint --gha-format manifest build-aux/io.github.tombreit.Glotze.yml
+        run: ./build-aux/checks.sh manifest
 
       # Ref: https://github.com/flatpak/flatpak-github-actions
       - name: Build flatpak bundle
@@ -52,7 +52,7 @@ jobs:
 
       # Lint the built OSTree repo (the same check Flathub runs on submission).
       - name: Lint repo
-        run: flatpak-builder-lint --gha-format repo repo
+        run: ./build-aux/checks.sh repo
 
       # TODO: Evaluate https://github.com/step-security/action-gh-release as an alternative
       - name: Attach bundle to GitHub release

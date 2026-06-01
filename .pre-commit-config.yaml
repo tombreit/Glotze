@@ -1,11 +1,11 @@
-# Local pre-commit hooks. Install once with:
-#   pipx install pre-commit && pre-commit install
-# Then `git commit` automatically runs the checks. Manual run:
-#   pre-commit run --all-files
+# Local pre-commit hooks. Install with:
+# $ pip install pre-commit && pre-commit install
+# Manual trigger:
+# $ pre-commit run --all-files
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -15,28 +15,26 @@ repos:
       - id: mixed-line-ending
         args: ["--fix=lf"]
 
-  # Rust toolchain hooks run from your local cargo — no extra installs. The
-  # CI workflow runs the same checks on every PR, so this is a "fail fast at
-  # commit time" convenience.
   - repo: local
     hooks:
       - id: cargo-fmt
         name: cargo fmt
-        entry: cargo fmt --all -- --check
+        entry: ./build-aux/checks.sh cargo_fmt
         language: system
         types: [rust]
         pass_filenames: false
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo clippy --all-targets --locked -- -D warnings
+        entry: ./build-aux/checks.sh cargo_clippy
         language: system
         types: [rust]
         pass_filenames: false
-      # Keep the Flathub vendor manifest in sync with Cargo.lock. The script
-      # rewrites cargo-sources.json; if Cargo.lock actually changed the deps,
-      # the file gets updated and pre-commit aborts the commit so you can
-      # `git add cargo-sources.json` and retry. If deps are unchanged the
-      # script is a no-op and the commit goes through.
+      - id: potfiles
+        name: regenerate po/POTFILES.in when translatable files change
+        entry: ./build-aux/checks.sh potfiles
+        language: system
+        files: ^(src/.*\.(rs|ui)|data/.*\.(ui|desktop\.in|metainfo\.xml\.in))$
+        pass_filenames: false
       - id: cargo-sources-fresh
         name: regenerate cargo-sources.json when Cargo.lock changes
         entry: ./scripts/update-cargo-sources.sh
