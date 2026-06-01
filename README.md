@@ -22,9 +22,34 @@ flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
 
-To force a specific UI language, pass `LANGUAGE` into the sandbox — e.g.
-`--env=LANGUAGE=C` for English (the source strings) or `--env=LANGUAGE=de` for
-German: `flatpak run --env=LANGUAGE=de io.github.tombreit.Glotze`.
+### Permissions
+
+Verify the - minimal - set of requested permissions:
+
+```sh
+flatpak permission-show io.github.tombreit.Glotze
+```
+
+### Uninstall
+
+Uninstall Glotze completly:
+
+```sh
+flatpak uninstall --delete-data io.github.tombreit.Glotze
+```
+
+Glotze currently only saves a semaphore if you would like the welcome screen to
+be displayed on every app start or not:
+`~/.var/app/io.github.tombreit.Glotze/data/io.github.tombreit.Glotze/welcome-shown`
+
+Your downloaded files are not affected by uninstalling Glotze.
+
+### Languages
+
+To force a specific UI language (currently supported: `EN` and `DE`),
+pass `LANGUAGE` into the sandbox — e.g. `--env=LANGUAGE=C` for English
+(the source strings) or `--env=LANGUAGE=de` for German:
+`flatpak run --env=LANGUAGE=de io.github.tombreit.Glotze`.
 
 ## Usage
 
