@@ -3,7 +3,7 @@ use std::rc::{Rc, Weak};
 use std::time::Duration;
 
 use adw::prelude::*;
-use gettextrs::gettext;
+use gettextrs::{gettext, ngettext};
 use gtk::{gio, glib};
 
 use crate::api::models::Show;
@@ -144,6 +144,7 @@ impl AppWindow {
                     &window,
                     Rc::clone(&manager),
                 );
+                wire_close_confirmation(&window, &manager);
                 wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
             }
             Err(e) => {
@@ -435,6 +436,59 @@ fn open_in_files(parent: Option<&adw::ApplicationWindow>, path: &std::path::Path
         if let Err(e) = res {
             log::warn!("could not reveal download in file manager: {e}");
         }
+    });
+}
+
+/// Guard the window's close against losing in-flight downloads. With nothing
+/// running, close proceeds normally. Otherwise the close is held and a
+/// confirmation dialog appears; confirming deletes the partial files and quits,
+/// cancelling keeps the window open. Glotze never runs in the background — this
+/// is what keeps a stray close from silently dropping a download instead.
+fn wire_close_confirmation(window: &adw::ApplicationWindow, manager: &Rc<Manager>) {
+    let manager = Rc::clone(manager);
+    // Set once the user has confirmed, so the follow-up `win.close()` sails
+    // through this same handler instead of re-prompting forever.
+    let force_close = Rc::new(Cell::new(false));
+
+    window.connect_close_request(move |win| {
+        let n = manager.active_count();
+        if force_close.get() || n == 0 {
+            return glib::Propagation::Proceed;
+        }
+
+        let dialog = adw::AlertDialog::builder()
+            .heading(gettext("Close Glotze?"))
+            .body(
+                ngettext(
+                    "A download is still in progress. Closing now cancels it and discards the partial file.",
+                    "{n} downloads are still in progress. Closing now cancels them and discards the partial files.",
+                    n as u32,
+                )
+                .replace("{n}", &n.to_string()),
+            )
+            .build();
+        dialog.add_response("cancel", &gettext("_Keep Open"));
+        dialog.add_response("close", &gettext("_Close Anyway"));
+        dialog.set_response_appearance("close", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        let win_close = win.clone();
+        let force_close = Rc::clone(&force_close);
+        let manager = Rc::clone(&manager);
+        dialog.connect_response(None, move |_dialog: &adw::AlertDialog, response: &str| {
+            if response != "close" {
+                return;
+            }
+            // Delete only our own tracked .part files, then let the close go
+            // through (the app quits, ending the workers).
+            manager.cleanup_partials();
+            force_close.set(true);
+            win_close.close();
+        });
+        dialog.present(Some(win));
+
+        glib::Propagation::Stop
     });
 }
 

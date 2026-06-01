@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: glotze\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-01 18:16+0200\n"
+"POT-Creation-Date: 2026-06-01 19:06+0200\n"
 "PO-Revision-Date: 2026-05-28 00:00+0000\n"
 "Last-Translator: tombreit <tombreit@gmail.com>\n"
 "Language-Team: German <gnome-de@gnome.org>\n"
@@ -343,83 +343,110 @@ msgstr "Suche"
 msgid "Downloads"
 msgstr "Downloads"
 
-#: src/window.rs:153
+#: src/window.rs:154
 msgid "Network unavailable"
 msgstr "Netzwerk nicht verfügbar"
 
-#: src/window.rs:154
+#: src/window.rs:155
 #, rust-format
 msgid "Glotze couldn't initialise its HTTP client: {error}"
 msgstr "Glotze konnte den HTTP-Client nicht initialisieren: {error}"
 
-#: src/window.rs:175
+#: src/window.rs:176
 msgid "_About Glotze"
 msgstr "_Über Glotze"
 
-#: src/window.rs:179
+#: src/window.rs:180
 msgid "Main Menu"
 msgstr "Hauptmenü"
 
-#: src/window.rs:186
+#: src/window.rs:187
 msgid "How Glotze works"
 msgstr "Wie Glotze funktioniert"
 
-#: src/window.rs:326
+#: src/window.rs:327
 #, rust-format
 msgid "Download finished: {title}"
 msgstr "Download abgeschlossen: {title}"
 
-#: src/window.rs:331
+#: src/window.rs:332
 #, rust-format
 msgid "Download failed: {title} ({reason})"
 msgstr "Download fehlgeschlagen: {title} ({reason})"
 
-#: src/window.rs:338
+#: src/window.rs:339
 #, rust-format
 msgid "Download cancelled: {title}"
 msgstr "Download abgebrochen: {title}"
 
-#: src/window.rs:383
+#: src/window.rs:384
 #, rust-format
 msgid "Download started: {title}"
 msgstr "Download gestartet: {title}"
 
-#: src/window.rs:390
+#: src/window.rs:391
 msgid "Could not start download (URL missing)."
 msgstr "Download konnte nicht gestartet werden (URL fehlt)."
 
-#: src/window.rs:563
+#: src/window.rs:460
+msgid "Close Glotze?"
+msgstr "Glotze schließen?"
+
+#: src/window.rs:463
+#, rust-format
+msgid ""
+"A download is still in progress. Closing now cancels it and discards the "
+"partial file."
+msgid_plural ""
+"{n} downloads are still in progress. Closing now cancels them and discards "
+"the partial files."
+msgstr[0] ""
+"Ein Download läuft noch. Beim Schließen wird er abgebrochen und die "
+"unvollständige Datei verworfen."
+msgstr[1] ""
+"{n} Downloads laufen noch. Beim Schließen werden sie abgebrochen und die "
+"unvollständigen Dateien verworfen."
+
+#: src/window.rs:470
+msgid "_Keep Open"
+msgstr "_Geöffnet lassen"
+
+#: src/window.rs:471
+msgid "_Close Anyway"
+msgstr "_Trotzdem schließen"
+
+#: src/window.rs:617
 msgid "Latest episodes"
 msgstr "Neueste Sendungen"
 
-#: src/window.rs:564
+#: src/window.rs:618
 msgid "Loading the most recent broadcasts…"
 msgstr "Neueste Sendungen werden geladen …"
 
-#: src/window.rs:568
+#: src/window.rs:622
 msgid "Searching…"
 msgstr "Suche läuft …"
 
-#: src/window.rs:569
+#: src/window.rs:623
 #, rust-format
 msgid "Looking for “{query}”"
 msgstr "Suche nach „{query}“"
 
-#: src/window.rs:593
+#: src/window.rs:647
 msgid "Search failed"
 msgstr "Suche fehlgeschlagen"
 
-#: src/window.rs:594
+#: src/window.rs:648
 msgid "Couldn’t reach mediathekviewweb.de — check your connection."
 msgstr ""
 "mediathekviewweb.de ist nicht erreichbar – prüfe deine Internetverbindung."
 
-#: src/window.rs:597
+#: src/window.rs:651
 #, rust-format
 msgid "Search failed: {error}"
 msgstr "Suche fehlgeschlagen: {error}"
 
-#: src/window.rs:602
+#: src/window.rs:656
 msgid "Internal error during search"
 msgstr "Interner Fehler bei der Suche"
 

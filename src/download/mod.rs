@@ -23,8 +23,21 @@ pub struct Manager {
     next_id: Cell<u64>,
     tx: Sender<Progress>,
     rx: Receiver<Progress>,
-    /// Per-download cancel flags. The worker checks this once per chunk.
-    cancellers: RefCell<HashMap<u64, Arc<AtomicBool>>>,
+    /// Currently-running downloads, keyed by id. Inserted in `enqueue`, removed
+    /// by `forget` on every terminal state — so this map is exactly the set of
+    /// in-flight downloads, and the source of truth for both `active_count` and
+    /// `cleanup_partials`.
+    active: RefCell<HashMap<u64, ActiveDownload>>,
+}
+
+/// What the Manager keeps for one in-flight download.
+struct ActiveDownload {
+    /// Cancel flag the worker checks once per chunk.
+    cancel: Arc<AtomicBool>,
+    /// Exact partial-file path this download writes to (constructed by
+    /// `target_paths`). Held so `cleanup_partials` can delete precisely this
+    /// file — and only this file — if the user closes mid-download.
+    part_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -49,7 +62,7 @@ impl Manager {
             next_id: Cell::new(1),
             tx,
             rx,
-            cancellers: RefCell::new(HashMap::new()),
+            active: RefCell::new(HashMap::new()),
         })
     }
 
@@ -60,6 +73,10 @@ impl Manager {
     pub fn enqueue(&self, show: &Show, quality: Quality) -> Option<EnqueueInfo> {
         let url = show.url_for(quality)?.to_string();
         let id = self.next_id.get();
+        // Resolve the on-disk paths up front (main thread): the partial path is
+        // tracked for cleanup, and both are handed to the worker so there's a
+        // single source of truth. No Videos dir → nowhere to download.
+        let (part_path, final_path) = target_paths(&show.title, &url, id)?;
         self.next_id.set(id + 1);
 
         let info = EnqueueInfo {
@@ -72,13 +89,19 @@ impl Manager {
         let tx = self.tx.clone();
         let title = show.title.clone();
         let cancel = Arc::new(AtomicBool::new(false));
-        self.cancellers.borrow_mut().insert(id, Arc::clone(&cancel));
+        self.active.borrow_mut().insert(
+            id,
+            ActiveDownload {
+                cancel: Arc::clone(&cancel),
+                part_path: part_path.clone(),
+            },
+        );
 
         gtk::gio::spawn_blocking(move || {
             // Announce immediately so the UI shows the row before the network warms up.
             let _ = tx.send_blocking(Progress::running(id, title.clone(), 0, 0));
 
-            match download_to_disk(id, &title, &url, &tx, &cancel) {
+            match download_to_disk(id, &title, &url, &part_path, &final_path, &tx, &cancel) {
                 Ok(Outcome::Done { path }) => {
                     let _ = tx.send_blocking(Progress::done(id, title, path));
                 }
@@ -99,35 +122,75 @@ impl Manager {
     /// next chunk boundary, delete the partial file, and emit
     /// `Progress::cancelled`.
     pub fn cancel(&self, id: u64) {
-        if let Some(flag) = self.cancellers.borrow().get(&id) {
-            flag.store(true, Ordering::Relaxed);
+        if let Some(d) = self.active.borrow().get(&id) {
+            d.cancel.store(true, Ordering::Relaxed);
         }
     }
 
-    /// Drop the cancellation flag for a download once it has reached a terminal
-    /// state. Called by the progress consumer in `window.rs`.
+    /// Forget a download once it has reached a terminal state (drops its cancel
+    /// flag and tracked partial path). Called by the progress consumer in
+    /// `window.rs`.
     pub fn forget(&self, id: u64) {
-        self.cancellers.borrow_mut().remove(&id);
+        self.active.borrow_mut().remove(&id);
     }
+
+    /// How many downloads are still running.
+    pub fn active_count(&self) -> usize {
+        self.active.borrow().len()
+    }
+
+    /// Delete the partial files of all still-running downloads. Called when the
+    /// user confirms closing the window mid-download.
+    ///
+    /// Deliberately conservative: it only touches the exact `.part` paths this
+    /// Manager recorded for in-flight downloads, and re-checks each one is a
+    /// `.part` file living directly in the resolved download directory before
+    /// removing it. A path failing either check is logged and skipped. The
+    /// final (renamed) file of a completed download is never in `active`, so it
+    /// can't be reached here.
+    pub fn cleanup_partials(&self) {
+        let dir = download_dir();
+        for d in self.active.borrow().values() {
+            let p = &d.part_path;
+            let safe = p.extension().is_some_and(|e| e == "part")
+                && dir.as_deref().is_some_and(|root| p.parent() == Some(root));
+            if safe {
+                cleanup_partial(p);
+            } else {
+                log::warn!("refusing to delete unexpected partial path {}", p.display());
+            }
+        }
+    }
+}
+
+/// Resolve `(part_path, final_path)` for a download: the `.part` file it writes
+/// to and the file it's renamed to on success. `None` when no Videos directory
+/// can be resolved (nowhere to download). The `id` keeps concurrent downloads of
+/// the same title from sharing a `.part` file.
+fn target_paths(title: &str, url: &str, id: u64) -> Option<(PathBuf, PathBuf)> {
+    let dir = download_dir()?;
+    let ext = guess_extension(url).unwrap_or("mp4");
+    let slug = slugify(title);
+    let part_path = dir.join(format!("{slug}.{id}.{ext}.part"));
+    let final_path = dir.join(format!("{slug}.{ext}"));
+    Some((part_path, final_path))
 }
 
 fn download_to_disk(
     id: u64,
     title: &str,
     url: &str,
+    // Paths are resolved by `target_paths` in `enqueue` (the `.part` file is
+    // also tracked there for cleanup), so the worker just writes and renames.
+    part_path: &Path,
+    final_path: &Path,
     tx: &Sender<Progress>,
     cancel: &AtomicBool,
 ) -> Result<Outcome> {
-    let dir = download_dir().ok_or_else(|| anyhow!("could not resolve Videos directory"))?;
-    std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
-
-    let ext = guess_extension(url).unwrap_or("mp4");
-    // Slug fixes the final filename; the `.part` file embeds the download id
-    // as well so two concurrent downloads of the same title can't clobber
-    // each other.
-    let slug = slugify(title);
-    let final_path = dir.join(format!("{slug}.{ext}"));
-    let part_path = dir.join(format!("{slug}.{id}.{ext}.part"));
+    let dir = part_path
+        .parent()
+        .ok_or_else(|| anyhow!("partial path has no parent directory"))?;
+    std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
 
     let http = reqwest::blocking::Client::builder()
         .user_agent(concat!("Glotze/", env!("CARGO_PKG_VERSION")))
@@ -139,7 +202,7 @@ fn download_to_disk(
     let total = resp.content_length().unwrap_or(0);
 
     let mut file =
-        File::create(&part_path).with_context(|| format!("creating {}", part_path.display()))?;
+        File::create(part_path).with_context(|| format!("creating {}", part_path.display()))?;
     let mut buf = vec![0u8; CHUNK_BYTES];
     let mut done: u64 = 0;
     let mut last_emit = Instant::now();
@@ -147,7 +210,7 @@ fn download_to_disk(
     loop {
         if cancel.load(Ordering::Relaxed) {
             drop(file);
-            cleanup_partial(&part_path);
+            cleanup_partial(part_path);
             log::info!("download id={id} cancelled at {done} bytes");
             return Ok(Outcome::Cancelled);
         }
@@ -167,7 +230,7 @@ fn download_to_disk(
 
     file.flush()?;
     drop(file);
-    std::fs::rename(&part_path, &final_path).with_context(|| {
+    std::fs::rename(part_path, final_path).with_context(|| {
         format!(
             "renaming {} -> {}",
             part_path.display(),
@@ -180,7 +243,9 @@ fn download_to_disk(
         final_path.display(),
         done
     );
-    Ok(Outcome::Done { path: final_path })
+    Ok(Outcome::Done {
+        path: final_path.to_path_buf(),
+    })
 }
 
 fn cleanup_partial(path: &Path) {
