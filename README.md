@@ -30,20 +30,6 @@ Verify the - minimal - set of requested permissions:
 flatpak permission-show io.github.tombreit.Glotze
 ```
 
-### Uninstall
-
-Uninstall Glotze completly:
-
-```sh
-flatpak uninstall --delete-data io.github.tombreit.Glotze
-```
-
-Glotze currently only saves a semaphore if you would like the welcome screen to
-be displayed on every app start or not:
-`~/.var/app/io.github.tombreit.Glotze/data/io.github.tombreit.Glotze/welcome-shown`
-
-Your downloaded files are not affected by uninstalling Glotze.
-
 ### Languages
 
 To force a specific UI language (currently supported: `EN` and `DE`),
@@ -64,7 +50,21 @@ Notes:
 - Glotze doesn't have any settings (yet). If you'd rather set the download
 location yourself, please [file an issue](https://github.com/tombreit/Glotze/issues).
 
-## Quick start (development)
+## Uninstall
+
+Uninstall Glotze completly:
+
+```sh
+flatpak uninstall --delete-data io.github.tombreit.Glotze
+```
+
+Glotze currently only saves a semaphore if you would like the welcome screen to
+be displayed on every app start or not:
+`~/.var/app/io.github.tombreit.Glotze/data/io.github.tombreit.Glotze/welcome-shown`
+
+Your downloaded files are not affected by uninstalling Glotze.
+
+## Development
 
 ```sh
 sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev libssl-dev
@@ -75,15 +75,14 @@ Minimum versions verified against: GTK 4.14, libadwaita 1.7, Rust 1.92.
 
 ## Acknowledgments
 
-- The inspiration for this Glotze app was the Android app **[Zapp](https://github.com/mediathekview/zapp)**.
+- The inspiration for this Glotze app was the Android app **[Zapp](https://github.com/mediathekview/zapp)**
 - Glotze gratefully uses the API from **[MediathekViewWeb](https://github.com/mediathekview/MediathekViewWeb)**
 - The Glotze **App icon** — a [*TestChart similar to old TV testscreens*](https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg)
   from Wikimedia Commons, released under
-  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain
-  dedication).
+  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 - Code, implementation and tooling inspiration:
   - **[Gitte](https://codeberg.org/ckruse/Gitte)**
-  - **[Fractal](https://gitlab.gnome.org/World/fractal)**,
+  - **[Fractal](https://gitlab.gnome.org/World/fractal)**
   - **[Shortwave](https://gitlab.gnome.org/World/Shortwave)**
 - Tech stack:
   - **[gtk-rs](https://gtk-rs.org/)**
