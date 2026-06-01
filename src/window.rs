@@ -165,14 +165,25 @@ fn build_header_bar(view_stack: &adw::ViewStack) -> adw::HeaderBar {
         .policy(adw::ViewSwitcherPolicy::Wide)
         .build();
 
-    let about_button = gtk::Button::builder()
+    let menu = gio::Menu::new();
+    menu.append(Some(&gettext("_About Glotze")), Some("app.about"));
+
+    let menu_button = gtk::MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .tooltip_text(gettext("Main Menu"))
+        .menu_model(&menu)
+        .primary(true)
+        .build();
+
+    let welcome_button = gtk::Button::builder()
         .icon_name("help-about-symbolic")
-        .tooltip_text(gettext("About Glotze"))
-        .action_name("app.about")
+        .tooltip_text(gettext("How Glotze works"))
+        .action_name("app.welcome")
         .build();
 
     let header = adw::HeaderBar::builder().title_widget(&switcher).build();
-    header.pack_end(&about_button);
+    header.pack_end(&menu_button);
+    header.pack_end(&welcome_button);
     header
 }
 

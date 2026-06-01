@@ -51,7 +51,7 @@ impl DownloadsPage {
 
         // Single physical line on the translatable string so xgettext's C
         // parser sees the same text Rust does at runtime — see the matching
-        // note in src/application.rs::orientation_text.
+        // note in src/application.rs::welcome_text.
         #[rustfmt::skip]
         let status = adw::StatusPage::builder()
             .icon_name("folder-download-symbolic")

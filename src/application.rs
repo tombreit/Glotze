@@ -46,7 +46,10 @@ fn install_app_actions(app: &adw::Application) {
     let about = gio::ActionEntry::builder("about")
         .activate(|app: &adw::Application, _, _| show_about(app))
         .build();
-    app.add_action_entries([quit, about]);
+    let welcome = gio::ActionEntry::builder("welcome")
+        .activate(|app: &adw::Application, _, _| show_welcome(app, None))
+        .build();
+    app.add_action_entries([quit, about, welcome]);
 }
 
 fn show_about(app: &adw::Application) {
@@ -64,7 +67,7 @@ fn show_about(app: &adw::Application) {
         // the leading whitespace on the next line, but the C parser keeps it,
         // and that mismatch breaks msgid lookup against the catalogue.
         .license(gettext("Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://eupl.eu/). See the LICENSE file or visit [eupl.eu](https://eupl.eu/) for the full text."))
-        .comments(orientation_text(&glib::markup_escape_text(
+        .comments(welcome_text(&glib::markup_escape_text(
             &download_dir_display(),
         )))
         .build();
@@ -90,7 +93,7 @@ fn show_about(app: &adw::Application) {
     dialog.present(app.active_window().as_ref());
 }
 
-/// Show the orientation dialog on launch until the user opts out via its
+/// Show the welcome dialog on launch until the user opts out via its
 /// "Don't show this again" checkbox. The opt-out is a single marker file under
 /// the user data dir — no `GSettings` schema/plumbing, and it works under
 /// `cargo run` and Flatpak.
@@ -101,7 +104,7 @@ fn maybe_show_welcome(app: &adw::Application) {
     if marker.exists() {
         return;
     }
-    show_welcome(app, marker);
+    show_welcome(app, Some(marker));
 }
 
 fn welcome_marker(app: &adw::Application) -> Option<PathBuf> {
@@ -119,42 +122,48 @@ fn welcome_marker(app: &adw::Application) -> Option<PathBuf> {
 // indentation on `\<newline>` continuations whereas Rust strips it, and the
 // runtime msgid lookup would then miss the catalogue entry.
 #[rustfmt::skip]
-fn orientation_text(dir: &str) -> String {
+fn welcome_text(dir: &str) -> String {
     gettext("Glotze <b>downloads</b> episodes for you — there's no streaming and no built-in player.\n\nContent comes from the public broadcasters (DACH region), eg. ARD, ZDF, 3sat, arte,… via the MediathekViewWeb API; files are saved to <tt>{dir}</tt>. Some videos are geo-blocked to Germany, Austria or Switzerland.\n\n“Glotze” is affectionate German slang for a TV set — roughly “the box” or “the telly”.")
         .replace("{dir}", dir)
 }
 
-fn show_welcome(app: &adw::Application, marker: PathBuf) {
-    let body = orientation_text(&glib::markup_escape_text(&download_dir_display()));
-
-    let dont_show = gtk::CheckButton::builder()
-        .label(gettext("Don't show this again"))
-        .halign(gtk::Align::Center)
-        .build();
+// `marker` is `Some` only for the automatic first-launch popup: it carries the
+// "Don't show this again" opt-out and the path to record it. When invoked on
+// demand (the header welcome button passes `None`), the welcome text is shown
+// without the checkbox — there's nothing to opt out of.
+fn show_welcome(app: &adw::Application, marker: Option<PathBuf>) {
+    let body = welcome_text(&glib::markup_escape_text(&download_dir_display()));
 
     let dialog = adw::AlertDialog::builder()
         .heading(gettext("Welcome to Glotze"))
         .body(body)
         .body_use_markup(true)
-        .extra_child(&dont_show)
         .build();
     dialog.add_response("ok", &gettext("_Got it"));
     dialog.set_default_response(Some("ok"));
     dialog.set_close_response("ok");
 
-    // Remember the opt-out only when the box is ticked; otherwise the dialog
-    // greets the user again next launch.
-    dialog.connect_response(None, move |_dialog: &adw::AlertDialog, _response: &str| {
-        if !dont_show.is_active() {
-            return;
-        }
-        if let Some(parent) = marker.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        if let Err(e) = std::fs::write(&marker, b"") {
-            log::warn!("could not record welcome marker {}: {e}", marker.display());
-        }
-    });
+    if let Some(marker) = marker {
+        let dont_show = gtk::CheckButton::builder()
+            .label(gettext("Don't show this again"))
+            .halign(gtk::Align::Center)
+            .build();
+        dialog.set_extra_child(Some(&dont_show));
+
+        // Remember the opt-out only when the box is ticked; otherwise the dialog
+        // greets the user again next launch.
+        dialog.connect_response(None, move |_dialog: &adw::AlertDialog, _response: &str| {
+            if !dont_show.is_active() {
+                return;
+            }
+            if let Some(parent) = marker.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::write(&marker, b"") {
+                log::warn!("could not record welcome marker {}: {e}", marker.display());
+            }
+        });
+    }
 
     dialog.present(app.active_window().as_ref());
 }
