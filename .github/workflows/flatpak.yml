@@ -33,32 +33,28 @@ jobs:
       - name: Lint manifest
         run: flatpak-builder-lint --gha-format manifest build-aux/io.github.tombreit.Glotze.yml
 
+      # Ref: https://github.com/flatpak/flatpak-github-actions
       - name: Build flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: glotze.flatpak
           manifest-path: build-aux/io.github.tombreit.Glotze.yml
-          # Must match `default-branch:` in the manifest; otherwise the action
-          # defaults to `master` and `flatpak build-bundle … stable` fails with
-          # "Refspec … not found".
+          cache-key: flatpak-builder-${{ hashFiles('Cargo.lock', 'build-aux/io.github.tombreit.Glotze.yml') }}
+          # The action builds and bundles under this branch name (passed as both
+          # --default-branch to flatpak-builder and the build-bundle ref).
+          # Pinned to `stable` so the locally produced bundle's ref matches Flathub's `stable` branch.
           branch: stable
-          # Mirror AppStream screenshots into the OSTree (a `screenshots/<arch>`
-          # ref) exactly like Flathub's own build, so the "Lint repo" step below
-          # passes its appstream-screenshots-not-mirrored-in-ostree /
-          # appstream-external-screenshot-url checks. flatpak-builder downloads
-          # the URLs from the metainfo, rewrites them to dl.flathub.org/media and
-          # (since 1.4.5) commits the ref automatically. These two errors can't be
-          # waived via flathub.json, so mirroring is the only fix.
+          # Ref: https://docs.flatpak.org/en/latest/flatpak-builder-command-reference.html
           mirror-screenshots-url: https://dl.flathub.org/media
           # Runs `meson test` inside the sandbox: appstreamcli validate +
           # desktop-file-validate (the targets in data/meson.build).
           run-tests: true
-          cache-key: flatpak-builder-${{ hashFiles('Cargo.lock', 'build-aux/io.github.tombreit.Glotze.yml') }}
 
       # Lint the built OSTree repo (the same check Flathub runs on submission).
       - name: Lint repo
         run: flatpak-builder-lint --gha-format repo repo
 
+      # TODO: Evaluate https://github.com/step-security/action-gh-release as an alternative
       - name: Attach bundle to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
