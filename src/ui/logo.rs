@@ -6,7 +6,9 @@ const LOGO_SIZE: i32 = 40;
 /// Build an `Image` widget showing the channel logo at `LOGO_SIZE` × `LOGO_SIZE`.
 /// Falls back to `default.svg` for unknown channels.
 pub fn channel_logo(channel: &str) -> gtk::Image {
-    let safe = channel.replace('/', "_");
+    // Match case-insensitively: the API's channel casing (e.g. "ONE", "ARD")
+    // varies, but the asset filenames are canonical lowercase.
+    let safe = channel.replace('/', "_").to_lowercase();
     let dir = channels_dir();
     let path = dir.join(format!("{safe}.svg"));
 
