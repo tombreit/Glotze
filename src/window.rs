@@ -113,50 +113,38 @@ impl AppWindow {
         let last_results: Rc<RefCell<Vec<Show>>> = Rc::new(RefCell::new(Vec::new()));
         wire_sort(&window, &results, &last_results, &sort);
 
-        // HTTP client init is fallible (TLS bootstrap). If it fails the app
-        // still launches — we just disable search and tell the user why.
-        match Client::new() {
-            Ok(client) => {
-                let manager = Manager::new();
-                let generation = Rc::new(Cell::new(0u64));
+        // ureq builds its TLS config lazily, so constructing the client can't
+        // fail; any network problems surface per-search in `run_search`.
+        let client = Client::new();
+        let manager = Manager::new();
+        let generation = Rc::new(Cell::new(0u64));
 
-                wire_search(
-                    &search_entry,
-                    &results,
-                    &toast_overlay,
-                    client.clone(),
-                    Rc::clone(&generation),
-                    Rc::clone(&sort),
-                    Rc::clone(&last_results),
-                );
-                kick_initial_search(
-                    client,
-                    Rc::clone(&generation),
-                    Rc::clone(&results),
-                    toast_overlay.clone(),
-                    sort.get(),
-                    Rc::clone(&last_results),
-                );
-                wire_row_action(
-                    &results,
-                    &downloads,
-                    &toast_overlay,
-                    &window,
-                    Rc::clone(&manager),
-                );
-                wire_close_confirmation(&window, &manager);
-                wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
-            }
-            Err(e) => {
-                log::error!("HTTP client init failed: {e:#}");
-                search_entry.set_sensitive(false);
-                results.show_empty(
-                    &gettext("Network unavailable"),
-                    &gettext("Glotze couldn't initialise its HTTP client: {error}")
-                        .replace("{error}", &e.to_string()),
-                );
-            }
-        }
+        wire_search(
+            &search_entry,
+            &results,
+            &toast_overlay,
+            client.clone(),
+            Rc::clone(&generation),
+            Rc::clone(&sort),
+            Rc::clone(&last_results),
+        );
+        kick_initial_search(
+            client,
+            Rc::clone(&generation),
+            Rc::clone(&results),
+            toast_overlay.clone(),
+            sort.get(),
+            Rc::clone(&last_results),
+        );
+        wire_row_action(
+            &results,
+            &downloads,
+            &toast_overlay,
+            &window,
+            Rc::clone(&manager),
+        );
+        wire_close_confirmation(&window, &manager);
+        wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
 
         Self { window }
     }

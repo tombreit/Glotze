@@ -10,7 +10,7 @@ publish = false  # binary-only app; not on crates.io
 [dependencies]
 gtk           = { package = "gtk4",       version = "0.11", features = ["v4_14"] }
 adw           = { package = "libadwaita", version = "0.9",  features = ["v1_7"] }
-reqwest       = { version = "0.13", default-features = false, features = ["blocking", "rustls", "rustls-native-certs", "json"] }
+ureq          = { version = "3", default-features = false, features = ["rustls", "json"] }
 serde         = { version = "1", features = ["derive"] }
 serde_json    = "1"
 async-channel = "2"

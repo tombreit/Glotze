@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
+use ureq::Agent;
 
+use crate::net;
 use models::Show;
 
 const QUERY_URL: &str = "https://mediathekviewweb.de/api/query";
@@ -74,17 +76,14 @@ impl Sort {
 
 #[derive(Clone)]
 pub struct Client {
-    http: reqwest::blocking::Client,
+    http: Agent,
 }
 
 impl Client {
-    pub fn new() -> Result<Self> {
-        let http = reqwest::blocking::Client::builder()
-            .user_agent(concat!("Glotze/", env!("CARGO_PKG_VERSION")))
-            .timeout(Duration::from_secs(30))
-            .build()
-            .context("building HTTP client")?;
-        Ok(Self { http })
+    pub fn new() -> Self {
+        Self {
+            http: net::agent(Some(Duration::from_secs(30)), None),
+        }
     }
 
     /// Search `MediathekViewWeb`. Free-text matches both title and topic.
@@ -118,16 +117,19 @@ impl Client {
 
         // MediathekViewWeb requires `Content-Type: text/plain` even though the body is JSON
         // (see zapp's IMediathekApiService.kt:11).
-        let resp = self
+        // ureq treats a non-2xx status as an error by default, so there is no
+        // separate `error_for_status` step.
+        let mut resp = self
             .http
             .post(QUERY_URL)
             .header("Content-Type", "text/plain")
-            .body(body)
-            .send()
-            .context("POST mediathekviewweb")?
-            .error_for_status()?;
+            .send(body)
+            .context("POST mediathekviewweb")?;
 
-        let answer: Answer = resp.json().context("decoding MVW response")?;
+        let answer: Answer = resp
+            .body_mut()
+            .read_json()
+            .context("decoding MVW response")?;
         if let Some(err) = answer.err {
             return Err(anyhow!("mediathekviewweb error: {err:?}"));
         }

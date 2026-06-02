@@ -192,14 +192,13 @@ fn download_to_disk(
         .ok_or_else(|| anyhow!("partial path has no parent directory"))?;
     std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
 
-    let http = reqwest::blocking::Client::builder()
-        .user_agent(concat!("Glotze/", env!("CARGO_PKG_VERSION")))
-        .timeout(None)
-        .connect_timeout(Duration::from_secs(15))
-        .build()?;
-
-    let mut resp = http.get(url).send()?.error_for_status()?;
-    let total = resp.content_length().unwrap_or(0);
+    // No global timeout: a download can legitimately run for a long time. ureq
+    // treats a non-2xx status as an error by default, replacing `error_for_status`.
+    let agent = crate::net::agent(None, Some(Duration::from_secs(15)));
+    let resp = agent.get(url).call()?;
+    let body = resp.into_body();
+    let total = body.content_length().unwrap_or(0);
+    let mut reader = body.into_reader();
 
     let mut file =
         File::create(part_path).with_context(|| format!("creating {}", part_path.display()))?;
@@ -215,7 +214,7 @@ fn download_to_disk(
             return Ok(Outcome::Cancelled);
         }
 
-        let n = resp.read(&mut buf)?;
+        let n = reader.read(&mut buf)?;
         if n == 0 {
             break;
         }

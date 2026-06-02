@@ -3,6 +3,7 @@ mod application;
 mod config;
 mod download;
 mod i18n;
+mod net;
 mod ui;
 mod window;
 

@@ -8,6 +8,7 @@ src/download/mod.rs
 src/download/progress.rs
 src/i18n.rs
 src/main.rs
+src/net.rs
 src/ui/downloads_page.rs
 src/ui/format.rs
 src/ui/logo.rs
