@@ -7,6 +7,18 @@ pub enum Quality {
     High,
 }
 
+impl Quality {
+    /// Short tag appended to download filenames so different-quality downloads
+    /// of the same show don't overwrite each other. Mirrors the UI picker.
+    pub fn tag(self) -> &'static str {
+        match self {
+            Quality::Low => "low",
+            Quality::Medium => "medium",
+            Quality::High => "hd",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Show {
     pub id: Option<String>,

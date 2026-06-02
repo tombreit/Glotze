@@ -76,7 +76,7 @@ impl Manager {
         // Resolve the on-disk paths up front (main thread): the partial path is
         // tracked for cleanup, and both are handed to the worker so there's a
         // single source of truth. No Videos dir → nowhere to download.
-        let (part_path, final_path) = target_paths(&show.title, &url, id)?;
+        let (part_path, final_path) = target_paths(&show.title, &url, quality, id)?;
         self.next_id.set(id + 1);
 
         let info = EnqueueInfo {
@@ -165,14 +165,16 @@ impl Manager {
 
 /// Resolve `(part_path, final_path)` for a download: the `.part` file it writes
 /// to and the file it's renamed to on success. `None` when no Videos directory
-/// can be resolved (nowhere to download). The `id` keeps concurrent downloads of
-/// the same title from sharing a `.part` file.
-fn target_paths(title: &str, url: &str, id: u64) -> Option<(PathBuf, PathBuf)> {
+/// can be resolved (nowhere to download). The `quality` tag in the filename
+/// keeps different-quality downloads of the same show from overwriting each
+/// other; the `id` keeps concurrent downloads from sharing a `.part` file.
+fn target_paths(title: &str, url: &str, quality: Quality, id: u64) -> Option<(PathBuf, PathBuf)> {
     let dir = download_dir()?;
     let ext = guess_extension(url).unwrap_or("mp4");
     let slug = slugify(title);
-    let part_path = dir.join(format!("{slug}.{id}.{ext}.part"));
-    let final_path = dir.join(format!("{slug}.{ext}"));
+    let q = quality.tag();
+    let part_path = dir.join(format!("{slug}.q-{q}.{id}.{ext}.part"));
+    let final_path = dir.join(format!("{slug}.q-{q}.{ext}"));
     Some((part_path, final_path))
 }
 
