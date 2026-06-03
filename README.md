@@ -2,6 +2,9 @@
 
 A GNOME-native desktop client for searching and downloading videos from
 public broadcaster Mediatheken (DACH region), eg. ARD, ZDF, 3sat, arte,…
+
+![Glotze main view](data/screenshots/glotze-main-view.png)
+
 Built with GTK 4 + libadwaita 1.7+ in Rust. Streaming and playback are out of
 scope — Glotze hands you the file and steps out of the way.
 
