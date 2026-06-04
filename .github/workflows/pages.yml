@@ -1,0 +1,79 @@
+name: Pages
+
+# Builds a GPG-signed Flatpak repository and publishes it to GitHub Pages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed repo
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Import signing key
+        env:
+          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+        run: |
+          GNUPGHOME="$(mktemp -d)"
+          echo "$FLATPAK_GPG_PRIVATE_KEY" | base64 -d | gpg --homedir "$GNUPGHOME" --import
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+
+      - name: Add flathub remote (for SDK/runtime deps)
+        run: flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build and sign the OSTree repo
+        env:
+          KEY_ID: ${{ secrets.FLATPAK_GPG_KEY_ID }}
+        run: |
+          flatpak-builder --user --install-deps-from=flathub --force-clean \
+            --repo=repo --gpg-sign="$KEY_ID" --gpg-homedir="$GNUPGHOME" \
+            build-dir build-aux/io.github.tombreit.Glotze.yml
+          flatpak build-update-repo --generate-static-deltas \
+            --gpg-sign="$KEY_ID" --gpg-homedir="$GNUPGHOME" repo
+
+      # Lint the built OSTree repo, same as flatpak.yml and the local dry run.
+      - name: Lint repo
+        run: ./build-aux/checks.sh repo
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p public
+          cp -r distribution/. public/
+          mv repo public/repo
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

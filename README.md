@@ -18,7 +18,24 @@ does not need to scrape per-channel sites.
 
 ## Install
 
-Each [GitHub release](https://github.com/tombreit/Glotze/releases) attaches a
+### via Flatpak repository (recommended)
+
+Glotze is published as a self-hosted, GPG-signed Flatpak repository at
+<https://tombreit.github.io/Glotze/>. Installing from there means
+`flatpak update` keeps you current, just like a Flathub app:
+
+```bash
+# Only once: add the remote repo
+flatpak install https://tombreit.github.io/Glotze/Glotze.flatpakref
+
+# Later:
+flatpak update io.github.tombreit.Glotze
+flatpak run io.github.tombreit.Glotze
+```
+
+### via Download
+
+Each [GitHub release](https://github.com/tombreit/Glotze/releases) also attaches a
 `glotze.flatpak` bundle. The `/releases/latest/download/` URL is stable, so you
 can fetch the most recent build without visiting the page:
 
@@ -73,12 +90,66 @@ Your downloaded files are not affected by uninstalling Glotze.
 
 ## Development
 
+### Runtime
+
+The flatpak runtime is currently specified in three locations:
+
+1. `build-aux/io.github.tombreit.Glotze.yml`
+1. `.github/workflows/flatpak.yml`
+1. `.github/workflows/pages.yml`
+
+Note to my future self for bumping the runtime: Don't forget to set the
+same runtime in all files.
+
+### Build
+
 ```sh
 sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev libssl-dev
 cargo run
 ```
 
 Minimum versions verified against: GTK 4.14, libadwaita 1.7, Rust 1.92.
+
+### Build flatpak
+
+TODO/Currently triggered via `.github/workflows/flatpak.yml`
+
+### Publishing/Distribution
+
+Distribution via my own flatpak repository, hosted on Github Pages, is done via
+a Github Action:
+
+#### Setup GPG
+
+```bash
+# Generate signing key without passphrase
+gpg --quick-generate-key "Glotze Flatpak Repo <mail@thms.de>" rsa4096 sign never
+
+# Get fingerprint
+gpg --fingerprint mail@thms.de
+
+# Commit the public key
+gpg --export <FINGERPRINT> > distribution/glotze.gpg
+
+# base64 public key for GPGKey= of glotze.flatpakrepo and Glotze.flatpakref
+gpg --export <FINGERPRINT> | base64 --wrap=0
+
+# Store as GitHub Actions repository secrets
+FLATPAK_GPG_PRIVATE_KEY → gpg --export-secret-keys --armor <FINGERPRINT> | base64 --wrap=0
+FLATPAK_GPG_KEY_ID      → <FINGERPRINT>
+```
+
+#### Publish
+
+`.github/workflows/pages.yml` runs on every `v*` tag (and on manual dispatch):
+
+1. Imports the private signing key from the `FLATPAK_GPG_PRIVATE_KEY` secret.
+1. Runs `flatpak-builder --repo=repo --gpg-sign=…` against
+   `build-aux/io.github.tombreit.Glotze.yml`
+1. Runs `flatpak build-update-repo`,
+   producing a signed OSTree repo on the `stable` branch.
+1. Copies this directory's files and drops the freshly built repo at `repo/`.
+1. Deploys the result to GitHub Pages.
 
 ## Acknowledgments
 
@@ -99,5 +170,4 @@ Minimum versions verified against: GTK 4.14, libadwaita 1.7, Rust 1.92.
 
 Licensed under the European Union Public Licence v1.2 (EUPL-1.2). The full text
 lives in [`LICENSE`](LICENSE). The EUPL is copyleft and lists AGPL-3.0, GPL-3.0,
-LGPL, MPL-2.0 and others in its compatibility appendix, so derivative works can
-be combined with code under those licenses where needed.
+LGPL, MPL-2.0 and others in its compatibility appendix.
