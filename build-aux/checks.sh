@@ -95,7 +95,7 @@ manifest() {
 
 repo() {
     check_fbl_availability || return
-    execute "repo" "$fbl $gha repo repo"
+    execute "repo" "$fbl $gha --exceptions --user-exceptions build-aux/flatpak-builder-lint-exceptions.json repo repo"
 }
 
 potfiles() {
