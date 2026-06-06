@@ -38,16 +38,26 @@ jobs:
           echo "$FLATPAK_GPG_PRIVATE_KEY" | base64 -d | gpg --homedir "$GNUPGHOME" --import
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
 
-      - name: Add flathub remote (for SDK/runtime deps)
-        run: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
+      # Reuse the proven action from flatpak.yml: it sets up the flathub
+      # remote and installs SDK/runtime deps correctly inside the container.
+      # gpg-sign uses the GNUPGHOME imported above (exported to $GITHUB_ENV).
       - name: Build and sign the OSTree repo
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: build-aux/io.github.tombreit.Glotze.yml
+          # Must match distribution/Glotze.flatpakref (Branch=stable) and flatpak.yml.
+          branch: stable
+          gpg-sign: ${{ secrets.FLATPAK_GPG_KEY_ID }}
+          mirror-screenshots-url: https://dl.flathub.org/media
+          cache-key: flatpak-builder-${{ hashFiles('Cargo.lock', 'build-aux/io.github.tombreit.Glotze.yml') }}
+          # We publish the repo dir, not a single-file bundle.
+          build-bundle: false
+          upload-artifact: false
+
+      - name: Generate static deltas and refresh repo metadata
         env:
           KEY_ID: ${{ secrets.FLATPAK_GPG_KEY_ID }}
         run: |
-          flatpak-builder --user --install-deps-from=flathub --force-clean \
-            --repo=repo --gpg-sign="$KEY_ID" --gpg-homedir="$GNUPGHOME" \
-            build-dir build-aux/io.github.tombreit.Glotze.yml
           flatpak build-update-repo --generate-static-deltas \
             --gpg-sign="$KEY_ID" --gpg-homedir="$GNUPGHOME" repo
 
