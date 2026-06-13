@@ -46,6 +46,34 @@ flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
 
+### via Nix (NixOS)
+
+Glotze ships a flake, so on NixOS (or any machine with Nix and flakes enabled)
+no Flatpak is needed:
+
+```sh
+# Try it once, without installing:
+nix run github:tombreit/Glotze
+
+# Build a ./result symlink, or install into your profile:
+nix build github:tombreit/Glotze
+nix profile install github:tombreit/Glotze
+```
+
+To pin it in a NixOS or home-manager flake, add Glotze as an input and reference
+its package:
+
+```nix
+{
+  inputs.glotze.url = "github:tombreit/Glotze";
+
+  # In your NixOS configuration:
+  #   environment.systemPackages = [ inputs.glotze.packages.${pkgs.system}.default ];
+  # …or with home-manager:
+  #   home.packages = [ inputs.glotze.packages.${pkgs.system}.default ];
+}
+```
+
 ### Permissions
 
 Verify the - minimal - set of requested permissions:
