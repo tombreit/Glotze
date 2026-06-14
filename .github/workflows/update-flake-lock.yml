@@ -1,0 +1,38 @@
+name: Update flake.lock
+
+# Keeps flake.lock (the nixpkgs pin behind the Nix build) current, independently
+# of app releases. Runs monthly and on demand; opens a PR only when nixpkgs has
+# actually moved (idempotent — no change, no PR). The "Run workflow" button in
+# the Actions tab replaces any local/ad-hoc regeneration.
+#
+# Note: the PR is opened with the default GITHUB_TOKEN, which doesn't re-trigger
+# other workflows, so nix.yml validates the bump after you merge to main (not on
+# the PR itself). To build the PR directly, add a PAT via `token:` below.
+
+on:
+  schedule:
+    - cron: '0 4 1 * *' # 1st of each month, 04:00 UTC
+  workflow_dispatch: # manual "regenerate now" button
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: nix flake update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Update flake.lock and open PR
+        uses: DeterminateSystems/update-flake-lock@main
+        with:
+          pr-title: "Update flake.lock (nixpkgs bump)"
+          pr-labels: |
+            dependencies
+            automated
