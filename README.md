@@ -136,6 +136,24 @@ Minimum versions verified against: GTK 4.14, libadwaita 1.7, Rust 1.92.
 
 TODO/Currently triggered via `.github/workflows/flatpak.yml`
 
+### Releasing
+
+Releases are cut with [`cargo release`](https://github.com/crate-ci/cargo-release)
+(configured in `[package.metadata.release]`). `Cargo.toml` is the single source of
+truth for the version; never bump it by hand. From a clean `main`:
+
+```sh
+cargo release patch              # dry-run preview (patch | minor | major)
+cargo release patch --execute    # do it for real
+```
+
+In one step this runs `./build-aux/checks.sh` (fmt, clippy, test, …), bumps the
+version, inserts a new `<release>` block into the metainfo, commits, tags
+`v<version>`, and pushes the commit + tag. The tag push then triggers
+`flatpak.yml` (builds `glotze.flatpak` and attaches it to the GitHub release) and
+`pages.yml` (refreshes the signed Flatpak repo). The Nix flake needs nothing
+extra — `github:tombreit/Glotze/v<version>` resolves to the new tag.
+
 ### Publishing/Distribution
 
 Distribution via my own flatpak repository, hosted on Github Pages, is done via
