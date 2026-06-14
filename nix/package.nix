@@ -36,6 +36,14 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = lib.cleanSource ../.;
 
+  # meson runs build-aux/cargo.sh during the build, but its `#!/usr/bin/env bash`
+  # shebang can't resolve in the Nix sandbox (no /usr/bin/env), so the cargo-build
+  # target dies with exit 127. patchShebangs only runs automatically on $out, not
+  # on build-time scripts in the source tree — rewrite it to the store bash here.
+  postPatch = ''
+    patchShebangs build-aux/cargo.sh
+  '';
+
   cargoDeps = rustPlatform.importCargoLock {
     lockFile = ../Cargo.lock;
   };
