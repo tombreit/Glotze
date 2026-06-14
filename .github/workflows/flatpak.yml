@@ -55,6 +55,9 @@ jobs:
       # matching GitHub release. softprops/action-gh-release is a JS action that
       # runs on the host via the API, so it needs no git inside the container.
       # TODO: Evaluate https://github.com/step-security/action-gh-release as an alternative
+      # `body` is prepended to the auto-generated notes, giving every release
+      # install instructions up top. The Nix path has no file artifact — its
+      # "artifact" is this tag, which the flake ref resolves reproducibly.
       - name: Attach bundle to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
@@ -62,3 +65,28 @@ jobs:
           files: glotze.flatpak
           generate_release_notes: true
           fail_on_unmatched_files: true
+          body: |
+            ### Install this release
+
+            **Flatpak - via repository**
+            ```bash
+            # Only once: add the remote repo
+            flatpak install https://tombreit.github.io/Glotze/Glotze.flatpakref
+            
+            # Later:
+            flatpak update io.github.tombreit.Glotze
+            flatpak run io.github.tombreit.Glotze
+            ```
+
+            **Flatpak via download**
+            ```sh
+            flatpak install --user ./glotze.flatpak
+            flatpak run io.github.tombreit.Glotze
+            ```
+
+            **Nix / flake** — no download needed; run this exact version:
+            ```sh
+            nix run github:tombreit/Glotze/${{ github.ref_name }}
+            ```
+
+
