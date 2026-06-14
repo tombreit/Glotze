@@ -50,44 +50,15 @@ jobs:
       - name: Lint repo
         run: ./build-aux/checks.sh repo
 
-      # Decide whether this run cuts a release, and at which tag.
-      #   * tag push (manual escape hatch) -> release at that tag.
-      #   * push to main -> derive v<version> from Cargo.toml (the single source
-      #     of truth, same line meson reads). If that tag doesn't exist yet,
-      #     create and push it, then release. Bumping Cargo.toml is the only
-      #     manual step; no hand-tagging, no version duplicated across files.
-      # The tag is pushed with the default GITHUB_TOKEN, which deliberately does
-      # not re-trigger this workflow — we already hold the freshly built bundle,
-      # so we attach it here in the same run instead of chaining.
-      - name: Resolve release tag
-        id: rel
-        if: github.event_name == 'push'
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-            echo "release=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          version=$(sed -n 's/^version = //p' Cargo.toml | head -n1 | tr -d '"')
-          tag="v$version"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists; no release this run."
-            echo "release=false" >> "$GITHUB_OUTPUT"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a "$tag" -m "Release $tag"
-            git push origin "$tag"
-            echo "tag=$tag" >> "$GITHUB_OUTPUT"
-            echo "release=true" >> "$GITHUB_OUTPUT"
-          fi
-
+      # cargo release creates and pushes the v<version> tag; that tag push
+      # triggers this workflow, and we attach the freshly built bundle to the
+      # matching GitHub release. softprops/action-gh-release is a JS action that
+      # runs on the host via the API, so it needs no git inside the container.
       # TODO: Evaluate https://github.com/step-security/action-gh-release as an alternative
       - name: Attach bundle to GitHub release
-        if: steps.rel.outputs.release == 'true'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.rel.outputs.tag }}
           files: glotze.flatpak
           generate_release_notes: true
           fail_on_unmatched_files: true
