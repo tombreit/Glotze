@@ -18,7 +18,10 @@ does not need to scrape per-channel sites.
 
 ## Install
 
-### via Flatpak repository (recommended)
+Glotze offers two installation paths: **Flatpak** and
+**Nix / flake**
+
+### via Flatpak repository
 
 Glotze is published as a self-hosted, GPG-signed Flatpak repository at
 <https://tombreit.github.io/Glotze/>. Installing from there means
@@ -46,32 +49,23 @@ flatpak install --user ./glotze.flatpak
 flatpak run io.github.tombreit.Glotze
 ```
 
-### via Nix (NixOS)
+### via Nix as a flake (NixOS)
 
-Glotze ships a flake, so on NixOS (or any machine with Nix and flakes enabled)
-no Flatpak is needed:
+No file to download — each release is its git tag, and the flake ref (with the
+committed `flake.lock`) resolves it reproducibly. Pin a tag for a specific
+release, or omit it to track `main` (newest tag on the
+[releases page](https://github.com/tombreit/Glotze/releases)):
 
 ```sh
-# Try it once, without installing:
+# A specific, reproducible release (replace with the newest tag):
+nix run github:tombreit/Glotze/v0.0.18
+
+# …or the latest commit on main:
 nix run github:tombreit/Glotze
 
 # Build a ./result symlink, or install into your profile:
-nix build github:tombreit/Glotze
-nix profile install github:tombreit/Glotze
-```
-
-To pin it in a NixOS or home-manager flake, add Glotze as an input and reference
-its package:
-
-```nix
-{
-  inputs.glotze.url = "github:tombreit/Glotze";
-
-  # In your NixOS configuration:
-  #   environment.systemPackages = [ inputs.glotze.packages.${pkgs.system}.default ];
-  # …or with home-manager:
-  #   home.packages = [ inputs.glotze.packages.${pkgs.system}.default ];
-}
+nix build           github:tombreit/Glotze/v0.0.18
+nix profile install github:tombreit/Glotze/v0.0.18
 ```
 
 ### Permissions
