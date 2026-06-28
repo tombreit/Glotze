@@ -24,6 +24,8 @@
   gtk4,
   libadwaita,
   glib,
+  librsvg,
+  hicolor-icon-theme,
   openssl,
 }:
 
@@ -70,6 +72,15 @@ stdenv.mkDerivation (finalAttrs: {
     gtk4
     libadwaita
     glib
+    # gdk-pixbuf SVG loader: lets GTK rasterize the app's full-color hicolor SVG
+    # icon. wrapGAppsHook4 detects it and wires GDK_PIXBUF_MODULE_FILE into the
+    # wrapper; without it the window/taskbar icon falls back to a generic one.
+    # (Symbolic UI icons render fine regardless — GTK4 draws those internally.)
+    librsvg
+    # Base hicolor index.theme so GTK recognizes the scalable/apps directory the
+    # icon is installed into. Likely transitive, but explicit keeps the icon path
+    # self-contained.
+    hicolor-icon-theme
     # ureq uses rustls, so OpenSSL is likely unused at runtime; kept to mirror
     # the CI lint deps and cover any transitive openssl-sys linkage. Safe to
     # drop if a build confirms it's unneeded.
