@@ -1,13 +1,10 @@
 name: Update flake.lock
 
 # Keeps flake.lock (the nixpkgs pin behind the Nix build) current, independently
-# of app releases. Runs monthly and on demand; opens a PR only when nixpkgs has
-# actually moved (idempotent — no change, no PR). The "Run workflow" button in
-# the Actions tab replaces any local/ad-hoc regeneration.
-#
-# Note: the PR is opened with the default GITHUB_TOKEN, which doesn't re-trigger
-# other workflows, so nix.yml validates the bump after you merge to main (not on
-# the PR itself). To build the PR directly, add a PAT via `token:` below.
+# of app releases. Runs monthly and on demand; commits the updated flake.lock
+# directly to the branch only when nixpkgs has actually moved (idempotent —
+# no change, no commit). The "Run workflow" button in the Actions tab replaces
+# any local/ad-hoc regeneration.
 
 on:
   schedule:
@@ -16,7 +13,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   update:
@@ -29,10 +25,17 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@v3
 
-      - name: Update flake.lock and open PR
-        uses: DeterminateSystems/update-flake-lock@main
-        with:
-          pr-title: "Update flake.lock (nixpkgs bump)"
-          pr-labels: |
-            dependencies
-            automated
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          if git diff --staged --quiet; then
+            echo "flake.lock is already up to date — nothing to commit."
+          else
+            git commit -m "chore: update flake.lock (nixpkgs bump)"
+            git push
+          fi
