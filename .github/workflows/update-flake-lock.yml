@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Check out
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Nix
         uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
