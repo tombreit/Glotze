@@ -510,3 +510,39 @@ fn headline_subline(show: &Show) -> (String, Option<String>) {
         (glib::markup_escape_text(title).to_string(), None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::headline_subline;
+    use crate::api::models::Show;
+
+    fn show(topic: &str, title: &str) -> Show {
+        serde_json::from_value(serde_json::json!({ "topic": topic, "title": title, "channel": "" }))
+            .unwrap()
+    }
+
+    #[test]
+    fn series_leads_episode_follows() {
+        assert_eq!(
+            headline_subline(&show("Tatort", "Folge 1")),
+            ("Tatort".into(), Some("Folge 1".into()))
+        );
+    }
+
+    #[test]
+    fn title_alone_when_series_missing_or_same() {
+        assert_eq!(headline_subline(&show("", "Doku")), ("Doku".into(), None));
+        assert_eq!(
+            headline_subline(&show("Doku", "Doku")),
+            ("Doku".into(), None)
+        );
+    }
+
+    #[test]
+    fn markup_is_escaped() {
+        assert_eq!(
+            headline_subline(&show("Tom & Jerry", "<b>")),
+            ("Tom &amp; Jerry".into(), Some("&lt;b&gt;".into()))
+        );
+    }
+}

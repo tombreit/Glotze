@@ -348,7 +348,57 @@ fn slugify(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::slugify;
+    use super::*;
+
+    fn show(topic: &str, title: &str, timestamp: Option<i64>) -> Show {
+        serde_json::from_value(serde_json::json!({
+            "topic": topic, "title": title, "channel": "ARD", "timestamp": timestamp,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn file_stem_has_series_episode_date_and_quality() {
+        // 2026-05-23 18:00 UTC = 20:00 in Berlin.
+        let s = show(
+            "Tatort",
+            "Der Mörder ist immer der Gärtner",
+            Some(1_779_559_200),
+        );
+        assert_eq!(
+            file_stem(&s, Quality::High),
+            "tatort-der-moerder-ist-immer-der-gaertner-2026-05-23.q-hd"
+        );
+    }
+
+    #[test]
+    fn file_stem_skips_series_repeated_in_title() {
+        let s = show("tagesschau", "Tagesschau 20:00 Uhr", Some(1_779_559_200));
+        assert_eq!(
+            file_stem(&s, Quality::Low),
+            "tagesschau-20-00-uhr-2026-05-23.q-low"
+        );
+    }
+
+    #[test]
+    fn file_stem_without_timestamp_has_no_date() {
+        let s = show("", "Spezial", None);
+        assert_eq!(file_stem(&s, Quality::Medium), "spezial.q-medium");
+    }
+
+    #[test]
+    fn guess_extension_from_url_path() {
+        assert_eq!(
+            guess_extension("https://cdn.example/a/b/video.mp4"),
+            Some("mp4")
+        );
+        assert_eq!(
+            guess_extension("https://cdn.example/v.webm?token=x.y"),
+            Some("webm")
+        );
+        assert_eq!(guess_extension("https://cdn.example/stream"), None);
+        assert_eq!(guess_extension("https://cdn.example/v.toolongext"), None);
+    }
 
     #[test]
     fn umlauts_get_ascii_equivalents() {

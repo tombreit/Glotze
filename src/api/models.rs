@@ -79,3 +79,39 @@ where
         _ => None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn show(extra: serde_json::Value) -> Show {
+        let mut json = serde_json::json!({ "topic": "t", "title": "t", "channel": "c" });
+        json.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn duration_accepts_number_float_string_and_null() {
+        let dur = |v: serde_json::Value| show(serde_json::json!({ "duration": v })).duration;
+        assert_eq!(dur(serde_json::json!(1800)), Some(1800));
+        assert_eq!(dur(serde_json::json!(1800.7)), Some(1800));
+        assert_eq!(dur(serde_json::json!("1800")), Some(1800));
+        assert_eq!(dur(serde_json::json!("n/a")), None);
+        assert_eq!(dur(serde_json::Value::Null), None);
+        assert_eq!(show(serde_json::json!({})).duration, None);
+    }
+
+    #[test]
+    fn url_for_skips_empty_and_hls() {
+        let s = show(serde_json::json!({
+            "url_video": "https://x/v.mp4",
+            "url_video_low": "",
+            "url_video_hd": "https://x/master.M3U8?x=1",
+        }));
+        assert_eq!(s.url_for(Quality::Medium), Some("https://x/v.mp4"));
+        assert_eq!(s.url_for(Quality::Low), None);
+        assert_eq!(s.url_for(Quality::High), None);
+    }
+}

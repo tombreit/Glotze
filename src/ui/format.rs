@@ -55,4 +55,11 @@ mod tests {
         assert_eq!(format_duration(3600), "1h");
         assert_eq!(format_duration(3600 + 29 * 60), "1h 29m");
     }
+
+    #[test]
+    fn dates_are_in_berlin_time() {
+        // 2026-05-23 22:30 UTC is already 00:30 on the 24th in Berlin (UTC+2).
+        assert_eq!(format_iso_date(1_779_575_400), "2026-05-24");
+        assert_eq!(format_time(1_779_575_400), "00:30");
+    }
 }

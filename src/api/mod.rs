@@ -168,3 +168,64 @@ struct Answer {
 struct AnswerResult {
     results: Vec<Show>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ANSWER: &str = r#"{
+        "result": {
+            "results": [
+                { "channel": "ARD", "topic": "Tatort", "title": "A", "timestamp": 200,
+                  "duration": "5400", "url_video": "https://x/a.mp4", "size": 1 },
+                { "channel": "ZDF", "topic": "heute", "title": "B", "timestamp": null,
+                  "duration": 900 },
+                { "channel": "3Sat", "topic": "nano", "title": "C", "timestamp": 100 }
+            ],
+            "queryInfo": { "resultCount": 3 }
+        },
+        "err": null
+    }"#;
+
+    fn titles(shows: &[Show]) -> Vec<&str> {
+        shows.iter().map(|s| s.title.as_str()).collect()
+    }
+
+    #[test]
+    fn parses_answer_ignoring_unknown_fields() {
+        let answer: Answer = serde_json::from_str(ANSWER).unwrap();
+        assert!(answer.err.is_none());
+        let shows = answer.result.unwrap().results;
+        assert_eq!(titles(&shows), ["A", "B", "C"]);
+        assert_eq!(shows[0].duration, Some(5400));
+    }
+
+    #[test]
+    fn sort_puts_missing_keys_last() {
+        let mut shows = serde_json::from_str::<Answer>(ANSWER)
+            .unwrap()
+            .result
+            .unwrap()
+            .results;
+        Sort::DateNewest.apply(&mut shows);
+        assert_eq!(titles(&shows), ["A", "C", "B"]);
+        Sort::DateOldest.apply(&mut shows);
+        assert_eq!(titles(&shows), ["C", "A", "B"]);
+        Sort::DurationLongest.apply(&mut shows);
+        assert_eq!(titles(&shows), ["A", "B", "C"]);
+        Sort::DurationShortest.apply(&mut shows);
+        assert_eq!(titles(&shows), ["B", "A", "C"]);
+    }
+
+    #[test]
+    fn sort_ids_round_trip() {
+        for sort in [
+            Sort::DateNewest,
+            Sort::DateOldest,
+            Sort::DurationLongest,
+            Sort::DurationShortest,
+        ] {
+            assert_eq!(Sort::from_id(sort.id()), Some(sort));
+        }
+    }
+}
