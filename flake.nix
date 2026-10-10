@@ -1,33 +1,28 @@
 {
   description = "Glotze — search and download videos from public broadcaster Mediatheken (DACH region)";
 
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-  };
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
+    { self, nixpkgs }:
+    let
+      # A GTK 4 desktop app: Linux only.
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+    in
     {
-      self,
-      nixpkgs,
-      flake-utils,
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        packages.default = pkgs.callPackage ./nix/package.nix { };
+      # `nix run` uses this package's meta.mainProgram, so no `apps` output.
+      packages = forAllSystems (system: {
+        default = nixpkgs.legacyPackages.${system}.callPackage ./nix/package.nix { };
+      });
 
-        apps.default = flake-utils.lib.mkApp {
-          drv = self.packages.${system}.default;
-        };
-
-        # `nix develop` — a shell with the toolchain to build/hack Glotze.
-        devShells.default = pkgs.mkShell {
+      # `nix develop` — a shell with the toolchain to build/hack Glotze.
+      devShells = forAllSystems (system: {
+        default = nixpkgs.legacyPackages.${system}.mkShell {
           inputsFrom = [ self.packages.${system}.default ];
         };
-      }
-    );
+      });
+    };
 }

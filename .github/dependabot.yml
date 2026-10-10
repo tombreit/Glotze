@@ -1,0 +1,12 @@
+# Keeps the workflow actions current (one grouped PR a month). Cargo crates are
+# updated by hand (`cargo update` + scripts/update-cargo-sources.sh), because
+# every Cargo.lock change needs a regenerated cargo-sources.json.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

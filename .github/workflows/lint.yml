@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   format:
-    name: fmt + potfiles
+    name: fmt + potfiles + packaging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -23,12 +23,17 @@ jobs:
           components: rustfmt
       - run: ./build-aux/checks.sh cargo_fmt
       - run: ./build-aux/checks.sh potfiles
+      - run: ./build-aux/checks.sh runtime_version
+      # The offline Flatpak build only sees crates vendored via
+      # cargo-sources.json; fail here, fast, if it lags behind Cargo.lock.
+      - run: ./build-aux/checks.sh cargo_sources
 
   clippy-and-test:
     name: clippy + test
     runs-on: ubuntu-latest
     # Fedora latest ships GTK 4 + libadwaita 1.8 (≥ our 1.7 minimum) in dnf,
     # and rustup gives us current-stable Rust regardless of distro version.
+    # tzdata: the date-formatting tests need Europe/Berlin.
     # The gnome-SDK container that flatpak.yml uses doesn't have rustup on
     # PATH, so we use a plain Fedora here.
     container:
@@ -38,7 +43,7 @@ jobs:
         run: |
           dnf install -y --setopt=install_weak_deps=False --best \
             gtk4-devel libadwaita-devel pkgconf-pkg-config \
-            openssl-devel gcc git ca-certificates
+            gcc git ca-certificates tzdata
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:

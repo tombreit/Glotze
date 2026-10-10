@@ -17,7 +17,8 @@
 #       TAG defaults to the most recent tag (`git describe --tags --abbrev=0`).
 #
 # Then copy build-aux/flathub/* into your fork of github.com/flathub/flathub
-# (branch off `new-pr`, name the branch after the app ID). See PUBLISHING.md.
+# (branch off `new-pr`, name the branch after the app ID). See
+# https://docs.flathub.org/docs/for-app-authors/submission
 
 set -euo pipefail
 
@@ -81,4 +82,5 @@ echo "  - $APP_ID.yml"
 echo "  - cargo-sources.json"
 echo
 echo "Next: copy both into your fork of github.com/flathub/flathub"
-echo "      (branch off 'new-pr', branch named '$APP_ID'). See PUBLISHING.md."
+echo "      (branch off 'new-pr', branch named '$APP_ID')."
+echo "      See https://docs.flathub.org/docs/for-app-authors/submission"

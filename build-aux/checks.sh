@@ -12,6 +12,8 @@ Currently used in CI/CD (lint.yml, flatpak.yml), .pre-commit-config.yaml,
 cargo release's pre-release hook, or triggered manually.
 
 USAGE: ${0##*/} [CHECK]
+CHECK: cargo_fmt | cargo_clippy | cargo_test | manifest | repo | potfiles |
+       runtime_version | cargo_sources  (default: all but repo)
 EOF
 }
 
@@ -98,6 +100,30 @@ repo() {
     execute "repo" "$fbl $gha --exceptions --user-exceptions build-aux/flatpak-builder-lint-exceptions.json repo repo"
 }
 
+# The Flatpak runtime version is named twice: in the manifest and in the CI
+# container image tag (gnome-NN). They must agree.
+check_runtime_version() {
+    manifest=$(sed -n "s/^runtime-version: *'\([0-9.]*\)'.*/\1/p" build-aux/io.github.tombreit.Glotze.yml)
+    image=$(sed -n 's/.*flatpak-github-actions:gnome-\([0-9.]*\).*/\1/p' .github/workflows/flatpak.yml)
+    echo "manifest runtime-version: '$manifest', CI image: gnome-$image"
+    [ -n "$manifest" ] && [ "$manifest" = "$image" ]
+}
+
+runtime_version() {
+    check_tool_availability "runtime-version" "sed --version" || return
+    execute "runtime-version" check_runtime_version
+}
+
+# cargo-sources.json must be regenerated whenever Cargo.lock changes.
+check_cargo_sources() {
+    ./scripts/update-cargo-sources.sh >/dev/null && git diff --exit-code cargo-sources.json
+}
+
+cargo_sources() {
+    check_tool_availability "cargo-sources" "python3 --version" || return
+    execute "cargo-sources" check_cargo_sources
+}
+
 potfiles() {
     check_tool_availability "potfiles" "git --version" || return
     git ls-files 'src/*.rs' 'src/*.ui' 'data/*.ui' 'data/*.desktop.in*' 'data/*.metainfo.xml.in*' > po/POTFILES.in
@@ -112,6 +138,8 @@ while [ "$1" ]; do case $1 in
     manifest )     manifest;      exit 0 ;;
     repo )         repo;          exit 0 ;;
     potfiles )     potfiles;      exit 0 ;;
+    runtime_version ) runtime_version; exit 0 ;;
+    cargo_sources ) cargo_sources; exit 0 ;;
     * )            show_help >&2; exit 1 ;;
 esac; shift; done
 
@@ -121,3 +149,5 @@ cargo_clippy
 cargo_test
 manifest
 potfiles
+runtime_version
+cargo_sources

@@ -48,9 +48,12 @@ modules:
         skip:
           - target
           - build
+          - _build
           - .git
           - build-dir
           - .flatpak-builder
           - repo
+          - public
+          - result
       # cargo-sources.json lives at the repo root, one level up from this manifest.
       - ../cargo-sources.json

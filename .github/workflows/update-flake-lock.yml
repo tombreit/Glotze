@@ -3,8 +3,8 @@ name: Update flake.lock
 # Keeps flake.lock (the nixpkgs pin behind the Nix build) current, independently
 # of app releases. Runs monthly and on demand; commits the updated flake.lock
 # directly to the branch only when nixpkgs has actually moved (idempotent —
-# no change, no commit). The "Run workflow" button in the Actions tab replaces
-# any local/ad-hoc regeneration.
+# no change, no commit) and the package still builds with it. The build has to
+# happen here: a push made with GITHUB_TOKEN doesn't trigger nix.yml.
 
 on:
   schedule:
@@ -23,10 +23,18 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@v3
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
       - name: Update flake.lock
         run: nix flake update
+
+      - name: Check and build with the new lock
+        run: |
+          nix flake check --print-build-logs
+          nix build --print-build-logs
 
       - name: Commit and push if changed
         run: |

@@ -57,15 +57,15 @@ release, or omit it to track `main` (newest tag on the
 [releases page](https://github.com/tombreit/Glotze/releases)):
 
 ```sh
-# A specific, reproducible release (replace with the newest tag):
-nix run github:tombreit/Glotze/v0.0.18
+# A specific, reproducible release (replace vX.Y.Z with the newest tag):
+nix run github:tombreit/Glotze/vX.Y.Z
 
 # …or the latest commit on main:
 nix run github:tombreit/Glotze
 
 # Build a ./result symlink, or install into your profile:
-nix build           github:tombreit/Glotze/v0.0.18
-nix profile install github:tombreit/Glotze/v0.0.18
+nix build           github:tombreit/Glotze/vX.Y.Z
+nix profile install github:tombreit/Glotze/vX.Y.Z
 ```
 
 ### Permissions
@@ -114,19 +114,16 @@ Your downloaded files are not affected by uninstalling Glotze.
 
 ### Runtime
 
-The flatpak runtime is currently specified in three locations:
+The flatpak runtime version is specified in two locations, which
+`./build-aux/checks.sh runtime_version` (run in CI) keeps in sync:
 
-1. `build-aux/io.github.tombreit.Glotze.yml`
-1. `.github/workflows/flatpak.yml`
-1. `.github/workflows/pages.yml`
-
-Note to my future self for bumping the runtime: Don't forget to set the
-same runtime in all files.
+1. `runtime-version` in `build-aux/io.github.tombreit.Glotze.yml`
+1. the `gnome-NN` container image tag in `.github/workflows/flatpak.yml`
 
 ### Build
 
 ```sh
-sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev libssl-dev
+sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev
 cargo run
 ```
 
@@ -134,7 +131,16 @@ Minimum versions verified against: GTK 4.14, libadwaita 1.7, Rust 1.92.
 
 ### Build flatpak
 
-TODO/Currently triggered via `.github/workflows/flatpak.yml`
+CI builds it via `.github/workflows/flatpak.yml`. Locally (offline, from the
+vendored crates in `cargo-sources.json`):
+
+```sh
+flatpak-builder --user --install --force-clean build-dir build-aux/io.github.tombreit.Glotze.yml
+flatpak run io.github.tombreit.Glotze
+```
+
+After any `Cargo.lock` change, run `./scripts/update-cargo-sources.sh` (CI fails
+otherwise).
 
 ### Releasing
 
@@ -150,9 +156,10 @@ cargo release patch --execute    # do it for real
 In one step this runs `./build-aux/checks.sh` (fmt, clippy, test, …), bumps the
 version, inserts a new `<release>` block into the metainfo, commits, tags
 `v<version>`, and pushes the commit + tag. The tag push then triggers
-`flatpak.yml` (builds `glotze.flatpak` and attaches it to the GitHub release) and
-`pages.yml` (refreshes the signed Flatpak repo). The Nix flake needs nothing
-extra — `github:tombreit/Glotze/v<version>` resolves to the new tag.
+`flatpak.yml`, which builds once, signs the result, attaches `glotze.flatpak` to
+the GitHub release and refreshes the signed Flatpak repo on GitHub Pages. The
+Nix flake needs nothing extra — `github:tombreit/Glotze/v<version>` resolves to
+the new tag.
 
 ### Publishing/Distribution
 
@@ -181,15 +188,17 @@ FLATPAK_GPG_KEY_ID      → <FINGERPRINT>
 
 #### Publish
 
-`.github/workflows/pages.yml` runs on every `v*` tag (and on manual dispatch):
+`.github/workflows/flatpak.yml` publishes on every `v*` tag (also when run
+manually on a tag; a manual run on a branch only builds):
 
 1. Imports the private signing key from the `FLATPAK_GPG_PRIVATE_KEY` secret.
 1. Runs `flatpak-builder --repo=repo --gpg-sign=…` against
-   `build-aux/io.github.tombreit.Glotze.yml`
+   `build-aux/io.github.tombreit.Glotze.yml` and exports `glotze.flatpak`
+   from that repo.
 1. Runs `flatpak build-update-repo`,
    producing a signed OSTree repo on the `stable` branch.
-1. Copies this directory's files and drops the freshly built repo at `repo/`.
-1. Deploys the result to GitHub Pages.
+1. Copies `distribution/` and drops the freshly built repo at `repo/`.
+1. Attaches the bundle to the GitHub release and deploys the site to GitHub Pages.
 
 ## Acknowledgments
 
