@@ -2,8 +2,9 @@ name: Nix
 
 # Verifies the flake keeps building. Nix users consume Glotze straight from the
 # flake ref (`nix run github:tombreit/Glotze`), so there's no artifact to ship
-# here — the GitHub release is produced by flatpak.yml. Tags aren't rebuilt:
-# a tag points at a commit already built on main.
+# here — the GitHub release is produced by flatpak.yml. Neither tags nor
+# cargo release's "Release x.y.z" commits are built: they only bump the version
+# of a commit main already built.
 
 on:
   push:
@@ -21,6 +22,9 @@ concurrency:
 jobs:
   build:
     name: nix build
+    # Skip cargo release's version-bump commit (see pre-release-commit-message
+    # in Cargo.toml). PRs and manual runs have no head_commit and always build.
+    if: ${{ !startsWith(github.event.head_commit.message, 'Release ') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out

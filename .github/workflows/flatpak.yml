@@ -25,6 +25,11 @@ concurrency:
 jobs:
   build:
     name: flatpak-builder
+    # cargo release pushes its "Release x.y.z" commit to main together with the
+    # v* tag; the tag run builds (and publishes) that exact commit, so skip the
+    # duplicate main build. Keep in sync with pre-release-commit-message in
+    # Cargo.toml. PRs and manual runs have no head_commit and always build.
+    if: github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'Release ')
     runs-on: ubuntu-latest
     container:
       # The gnome-NN tag must match runtime-version in the manifest;
