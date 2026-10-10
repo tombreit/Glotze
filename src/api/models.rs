@@ -8,8 +8,10 @@ pub enum Quality {
 }
 
 impl Quality {
+    pub const ALL: [Quality; 3] = [Quality::Low, Quality::Medium, Quality::High];
+
     /// Short tag appended to download filenames so different-quality downloads
-    /// of the same show don't overwrite each other. Mirrors the UI picker.
+    /// of the same show don't overwrite each other; also names the UI toggle.
     pub fn tag(self) -> &'static str {
         match self {
             Quality::Low => "low",
@@ -32,13 +34,7 @@ pub struct Show {
     pub url_video: Option<String>,
     pub url_video_low: Option<String>,
     pub url_video_hd: Option<String>,
-    // Subtitle and size aren't surfaced in the UI yet but the roadmap calls
-    // for both (sidecar .vtt download and a pre-flight size hint on the row).
-    #[allow(dead_code)]
-    pub url_subtitle: Option<String>,
     pub url_website: Option<String>,
-    #[allow(dead_code)]
-    pub size: Option<u64>,
 }
 
 impl Show {

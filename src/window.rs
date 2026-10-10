@@ -1,5 +1,5 @@
-use std::cell::{Cell, RefCell};
-use std::rc::{Rc, Weak};
+use std::cell::Cell;
+use std::rc::Rc;
 
 use adw::prelude::*;
 use gettextrs::{gettext, ngettext};
@@ -7,447 +7,265 @@ use gtk::{gio, glib};
 
 use crate::api::models::Show;
 use crate::api::{Client, Sort};
-use crate::download::{
-    Manager,
-    progress::{Progress, State},
-};
+use crate::download::Manager;
+use crate::download::progress::{Progress, State};
+use crate::ui::CONTENT_WIDTH;
 use crate::ui::downloads_page::DownloadsPage;
 use crate::ui::results_page::ResultsPage;
-use crate::ui::row::RowAction;
+use crate::ui::row::{RowAction, RowEvent};
 
 /// Delay before `search-changed` fires, so typing doesn't spam the API.
 const SEARCH_DELAY_MS: u32 = 300;
 const RESULTS_PAGE_SIZE: u32 = 30;
 
-pub struct AppWindow {
+/// Everything the window's handlers share. It lives as long as the process:
+/// Glotze has exactly one window and quits when it closes, so the signal
+/// handlers and the two event loops below simply hold strong references.
+struct AppWindow {
     window: adw::ApplicationWindow,
+    toast_overlay: adw::ToastOverlay,
+    search_entry: gtk::SearchEntry,
+    results: ResultsPage,
+    downloads: DownloadsPage,
+    manager: Manager,
+    client: Client,
+    sort: Cell<Sort>,
+    /// Bumped per search, so a slow response can tell it has been superseded.
+    generation: Cell<u64>,
+}
+
+/// Build the main window, wire it up, and start the initial "latest episodes"
+/// search.
+pub fn build(app: &adw::Application) -> adw::ApplicationWindow {
+    let (row_tx, row_rx) = async_channel::unbounded();
+    let (manager, progress_rx) = Manager::new();
+
+    let window = adw::ApplicationWindow::builder()
+        .application(app)
+        .title(gettext("Glotze"))
+        .default_width(900)
+        .default_height(640)
+        .build();
+    let search_entry = gtk::SearchEntry::builder()
+        .placeholder_text(gettext("Search title or topic…"))
+        .search_delay(SEARCH_DELAY_MS)
+        .hexpand(true)
+        .build();
+    let results = ResultsPage::new(row_tx.clone());
+    let downloads = DownloadsPage::new(row_tx);
+    let toast_overlay = adw::ToastOverlay::new();
+
+    // Fixed search bar above the scrolling results, clamped to the same width.
+    let search_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    search_row.append(&search_entry);
+    search_row.append(&sort_button());
+    let search_clamp = adw::Clamp::builder()
+        .maximum_size(CONTENT_WIDTH)
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .child(&search_row)
+        .build();
+    let search_page = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    search_page.append(&search_clamp);
+    search_page.append(results.widget());
+    results.widget().set_vexpand(true);
+
+    let view_stack = adw::ViewStack::new();
+    view_stack.add_titled_with_icon(
+        &search_page,
+        Some("search"),
+        &gettext("Search"),
+        "system-search-symbolic",
+    );
+    view_stack.add_titled_with_icon(
+        downloads.widget(),
+        Some("downloads"),
+        &gettext("Downloads"),
+        "folder-download-symbolic",
+    );
+    toast_overlay.set_child(Some(&view_stack));
+
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&header_bar(&view_stack));
+    toolbar.set_content(Some(&toast_overlay));
+    window.set_content(Some(&toolbar));
+
+    let this = Rc::new(AppWindow {
+        window: window.clone(),
+        toast_overlay,
+        search_entry,
+        results,
+        downloads,
+        manager,
+        client: Client::new(),
+        sort: Cell::new(Sort::default()),
+        generation: Cell::new(0),
+    });
+
+    install_actions(&this, &view_stack);
+    this.search_entry.connect_search_changed(glib::clone!(
+        #[strong]
+        this,
+        move |_| this.search()
+    ));
+    window.connect_close_request(glib::clone!(
+        #[strong]
+        this,
+        move |_| this.on_close_request()
+    ));
+    glib::spawn_future_local(glib::clone!(
+        #[strong]
+        this,
+        async move {
+            while let Ok(event) = row_rx.recv().await {
+                this.on_row_event(event);
+            }
+        }
+    ));
+    glib::spawn_future_local(glib::clone!(
+        #[strong]
+        this,
+        async move {
+            while let Ok(progress) = progress_rx.recv().await {
+                this.on_progress(&progress);
+            }
+        }
+    ));
+
+    this.search();
+    window
 }
 
 impl AppWindow {
-    pub fn new(app: &adw::Application) -> Self {
-        let window = adw::ApplicationWindow::builder()
-            .application(app)
-            .title(gettext("Glotze"))
-            .default_width(900)
-            .default_height(640)
-            .build();
+    /// Search for the entry's text (empty = latest episodes) in the current
+    /// sort order, replacing the result list.
+    fn search(self: &Rc<Self>) {
+        let query = self.search_entry.text().trim().to_string();
+        let sort = self.sort.get();
+        let generation = self.generation.get() + 1;
+        self.generation.set(generation);
 
-        let results = ResultsPage::new();
-        let downloads = Rc::new(DownloadsPage::new());
+        if query.is_empty() {
+            self.results.show_loading(
+                &gettext("Latest episodes"),
+                &gettext("Loading the most recent broadcasts…"),
+            );
+        } else {
+            self.results.show_loading(
+                &gettext("Searching…"),
+                &gettext("Looking for “{query}”").replace("{query}", &query),
+            );
+        }
 
-        let search_entry = gtk::SearchEntry::builder()
-            .placeholder_text(gettext("Search title or topic…"))
-            .search_delay(SEARCH_DELAY_MS)
-            .hexpand(true)
-            .build();
-        // Sort control: a menu button driven by the stateful `win.sort` action,
-        // wired further down once `last_results`/`sort` exist.
-        let sort_menu = gio::Menu::new();
-        sort_menu.append(
-            Some(&gettext("Newest first")),
-            Some("win.sort::date-newest"),
-        );
-        sort_menu.append(
-            Some(&gettext("Oldest first")),
-            Some("win.sort::date-oldest"),
-        );
-        sort_menu.append(
-            Some(&gettext("Longest first")),
-            Some("win.sort::duration-longest"),
-        );
-        sort_menu.append(
-            Some(&gettext("Shortest first")),
-            Some("win.sort::duration-shortest"),
-        );
-        let sort_button = gtk::MenuButton::builder()
-            .icon_name("view-sort-descending-symbolic")
-            .tooltip_text(gettext("Sort results"))
-            .valign(gtk::Align::Center)
-            .menu_model(&sort_menu)
-            .build();
+        let this = Rc::clone(self);
+        let client = self.client.clone();
+        glib::spawn_future_local(async move {
+            let q = query.clone();
+            let outcome =
+                gio::spawn_blocking(move || client.search(&q, RESULTS_PAGE_SIZE, sort)).await;
 
-        // Fixed search bar above the scrolling results: the entry plus the sort
-        // button. Clamped to the same width as the results list below it, with
-        // uniform padding so the row isn't edge-to-edge.
-        let search_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        search_row.append(&search_entry);
-        search_row.append(&sort_button);
-        let search_clamp = adw::Clamp::builder()
-            .maximum_size(860)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
-            .child(&search_row)
-            .build();
-
-        let search_page_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        search_page_box.append(&search_clamp);
-        search_page_box.append(results.widget());
-        results.widget().set_vexpand(true);
-
-        let view_stack = adw::ViewStack::new();
-        view_stack.add_titled_with_icon(
-            &search_page_box,
-            Some("search"),
-            &gettext("Search"),
-            "system-search-symbolic",
-        );
-        view_stack.add_titled_with_icon(
-            downloads.widget(),
-            Some("downloads"),
-            &gettext("Downloads"),
-            "folder-download-symbolic",
-        );
-
-        let toast_overlay = adw::ToastOverlay::new();
-        toast_overlay.set_child(Some(&view_stack));
-
-        let header = build_header_bar(&view_stack);
-        let toolbar = adw::ToolbarView::new();
-        toolbar.add_top_bar(&header);
-        toolbar.set_content(Some(&toast_overlay));
-        window.set_content(Some(&toolbar));
-
-        install_window_actions(&window, &view_stack, &search_entry);
-
-        // Current sort order plus the last batch of results, so a sort change
-        // can re-order what's already on screen without hitting the network.
-        let sort = Rc::new(Cell::new(Sort::default()));
-        let last_results: Rc<RefCell<Vec<Show>>> = Rc::new(RefCell::new(Vec::new()));
-        wire_sort(&window, &results, &last_results, &sort);
-
-        // ureq builds its TLS config lazily, so constructing the client can't
-        // fail; any network problems surface per-search in `run_search`.
-        let client = Client::new();
-        let (manager, progress_rx) = Manager::new();
-        let manager = Rc::new(manager);
-        let generation = Rc::new(Cell::new(0u64));
-
-        wire_search(
-            &search_entry,
-            &results,
-            &toast_overlay,
-            client.clone(),
-            Rc::clone(&generation),
-            Rc::clone(&sort),
-            Rc::clone(&last_results),
-        );
-        kick_initial_search(
-            client,
-            Rc::clone(&generation),
-            Rc::clone(&results),
-            toast_overlay.clone(),
-            sort.get(),
-            Rc::clone(&last_results),
-        );
-        wire_row_action(
-            &results,
-            &downloads,
-            &toast_overlay,
-            &window,
-            Rc::clone(&manager),
-        );
-        wire_close_confirmation(&window, &manager);
-        wire_progress_consumer(downloads, &results, &manager, &toast_overlay, progress_rx);
-
-        Self { window }
+            if this.generation.get() != generation {
+                log::debug!("dropping stale search result for {query:?}");
+                return;
+            }
+            match outcome {
+                Ok(Ok(shows)) => {
+                    log::info!("search '{query}' -> {} results", shows.len());
+                    this.show_results(&shows);
+                }
+                Ok(Err(e)) => {
+                    log::error!("search '{query}' failed: {e:#}");
+                    this.results.show_empty(
+                        &gettext("Search failed"),
+                        &gettext("Couldn’t reach mediathekviewweb.de — check your connection."),
+                    );
+                    this.toast(
+                        &gettext("Search failed: {error}").replace("{error}", &e.to_string()),
+                    );
+                }
+                Err(_) => {
+                    log::error!("search worker panicked");
+                    this.toast(&gettext("Internal error during search"));
+                }
+            }
+        });
     }
 
-    pub fn present(&self) {
-        self.window.present();
-    }
-}
-
-fn build_header_bar(view_stack: &adw::ViewStack) -> adw::HeaderBar {
-    let switcher = adw::ViewSwitcher::builder()
-        .stack(view_stack)
-        .policy(adw::ViewSwitcherPolicy::Wide)
-        .build();
-
-    let menu = gio::Menu::new();
-    menu.append(Some(&gettext("_About Glotze")), Some("app.about"));
-
-    let menu_button = gtk::MenuButton::builder()
-        .icon_name("open-menu-symbolic")
-        .tooltip_text(gettext("Main Menu"))
-        .menu_model(&menu)
-        .primary(true)
-        .build();
-
-    let welcome_button = gtk::Button::builder()
-        .icon_name("help-about-symbolic")
-        .tooltip_text(gettext("How Glotze works"))
-        .action_name("app.welcome")
-        .build();
-
-    let header = adw::HeaderBar::builder().title_widget(&switcher).build();
-    header.pack_end(&menu_button);
-    header.pack_end(&welcome_button);
-    header
-}
-
-fn install_window_actions(
-    window: &adw::ApplicationWindow,
-    view_stack: &adw::ViewStack,
-    search_entry: &gtk::SearchEntry,
-) {
-    let search_focus = gio::ActionEntry::builder("search-focus")
-        .activate(glib::clone!(
-            #[weak]
-            search_entry,
-            move |_win: &adw::ApplicationWindow, _, _| {
-                search_entry.grab_focus();
-            }
-        ))
-        .build();
-    let show_search = gio::ActionEntry::builder("show-search")
-        .activate(glib::clone!(
-            #[weak]
-            view_stack,
-            move |_win: &adw::ApplicationWindow, _, _| {
-                view_stack.set_visible_child_name("search");
-            }
-        ))
-        .build();
-    let show_downloads = gio::ActionEntry::builder("show-downloads")
-        .activate(glib::clone!(
-            #[weak]
-            view_stack,
-            move |_win: &adw::ApplicationWindow, _, _| {
-                view_stack.set_visible_child_name("downloads");
-            }
-        ))
-        .build();
-    window.add_action_entries([search_focus, show_search, show_downloads]);
-}
-
-/// Stateful `win.sort` action backing the sort menu. Changing it re-orders the
-/// already-fetched results in place (no refetch); new searches read the current
-/// value via `sort`.
-fn wire_sort(
-    window: &adw::ApplicationWindow,
-    results: &Rc<ResultsPage>,
-    last_results: &Rc<RefCell<Vec<Show>>>,
-    sort: &Rc<Cell<Sort>>,
-) {
-    let action = gio::ActionEntry::builder("sort")
-        .parameter_type(Some(glib::VariantTy::STRING))
-        .state(Sort::default().id().to_variant())
-        .activate(glib::clone!(
-            #[strong]
-            results,
-            #[strong]
-            last_results,
-            #[strong]
-            sort,
-            move |_win: &adw::ApplicationWindow, action, param| {
-                let Some(param) = param else {
-                    return;
-                };
-                let Some(id) = param.get::<String>() else {
-                    return;
-                };
-                let Some(new_sort) = Sort::from_id(&id) else {
-                    return;
-                };
-                action.set_state(param);
-                sort.set(new_sort);
-                let mut shows = last_results.borrow().clone();
-                new_sort.apply(&mut shows);
-                results.set_shows(&shows);
-            }
-        ))
-        .build();
-    window.add_action_entries([action]);
-}
-
-fn wire_progress_consumer(
-    downloads: Rc<DownloadsPage>,
-    results: &Rc<ResultsPage>,
-    manager: &Rc<Manager>,
-    toast_overlay: &adw::ToastOverlay,
-    rx: async_channel::Receiver<Progress>,
-) {
-    // `downloads` is owned strongly by the future — nothing else holds a
-    // strong ref to the Rust wrapper (view_stack only keeps the GTK widget),
-    // and without it the page's rows HashMap would drop the moment
-    // `AppWindow::new` returns. The future ends naturally when the Manager
-    // drops on window close (rx returns Err), at which point `downloads`
-    // is released. results/manager keep their Weak refs so the consumer can
-    // detect window-closing without creating an ownership cycle through
-    // Manager (which would prevent rx from ever erroring).
-    let results_weak: Weak<ResultsPage> = Rc::downgrade(results);
-    let manager_weak: Weak<Manager> = Rc::downgrade(manager);
-    let toast_weak = toast_overlay.downgrade();
-
-    glib::MainContext::default().spawn_local(async move {
-        while let Ok(p) = rx.recv().await {
-            let (Some(results), Some(manager), Some(toast)) = (
-                results_weak.upgrade(),
-                manager_weak.upgrade(),
-                toast_weak.upgrade(),
-            ) else {
-                break;
-            };
-            // Late events of a download that was already cancelled or finished.
-            if !manager.is_active(p.id) {
-                continue;
-            }
-
-            let is_terminal = p.state.is_terminal();
-            let title = p.title.clone();
-            let id = p.id;
-            let state = p.state.clone();
-
-            let show_id_for_cleanup = if is_terminal {
-                results.show_id_for_download(id)
-            } else {
-                None
-            };
-
-            results.apply_progress(&p);
-            downloads.apply(p);
-
-            if is_terminal {
-                if let Some(sid) = show_id_for_cleanup {
-                    results.forget_running(&sid);
-                }
-                manager.forget(id);
-
-                match state {
-                    State::Done { .. } => {
-                        toast.add_toast(adw::Toast::new(
-                            &gettext("Download finished: {title}").replace("{title}", &title),
-                        ));
-                    }
-                    State::Failed { reason } => {
-                        toast.add_toast(adw::Toast::new(
-                            &gettext("Download failed: {title} ({reason})")
-                                .replace("{title}", &title)
-                                .replace("{reason}", &reason),
-                        ));
-                    }
-                    State::Cancelled => {
-                        toast.add_toast(adw::Toast::new(
-                            &gettext("Download cancelled: {title}").replace("{title}", &title),
-                        ));
-                    }
-                    State::Running { .. } => {}
-                }
+    fn show_results(&self, shows: &[Show]) {
+        self.results.set_shows(shows);
+        // A show that is downloading right now picks its download up again.
+        for row in self.results.rows().iter() {
+            if let Some(id) = row.show_id().and_then(|s| self.manager.active_for_show(s)) {
+                row.start_download(id);
             }
         }
-    });
-}
+    }
 
-fn wire_row_action(
-    results: &Rc<ResultsPage>,
-    downloads: &Rc<DownloadsPage>,
-    toast_overlay: &adw::ToastOverlay,
-    parent: &adw::ApplicationWindow,
-    manager: Rc<Manager>,
-) {
-    // The Downloads page mirrors every enqueued show as its own always-expanded
-    // row, and lets that row drive Cancel/Open directly; wire it first, using
-    // Weak captures so its stored closure can't keep the manager or window alive
-    // (the progress consumer relies on the manager dropping at window close).
-    wire_downloads_action(downloads, parent, &manager);
-
-    let toast_overlay = toast_overlay.clone();
-    let parent = parent.clone();
-    // Weak ref breaks the self-cycle: this closure is installed on results,
-    // so a strong ref here would make ResultsPage permanently un-freeable.
-    let results_weak = Rc::downgrade(results);
-    // Strong clone: the closure pre-builds a download row at enqueue time. The
-    // page itself is owned by the progress-consumer future, so this strong ref
-    // is released when `results` drops at window close.
-    let downloads = Rc::clone(downloads);
-
-    results.connect_action(move |show, action| match action {
-        RowAction::Download(quality) | RowAction::Retry(quality) => {
-            match manager.enqueue(&show, quality) {
+    fn on_row_event(&self, RowEvent { row, action }: RowEvent) {
+        match action {
+            RowAction::Download(quality) => match self.manager.enqueue(row.show(), quality) {
                 Ok(id) => {
-                    if let (Some(sid), Some(results)) = (show.id.as_deref(), results_weak.upgrade())
-                    {
-                        results.track_download(id, sid);
+                    row.start_download(id);
+                    // A retry on the Downloads page reuses its row; a new
+                    // download from the Search page gets one there.
+                    if row.is_search_row() {
+                        self.downloads.add(row.show(), quality, id);
                     }
-                    // Mirror the show onto the Downloads page as an
-                    // always-expanded row keyed by the download id.
-                    downloads.add_download(id, &show);
-                    let toast = adw::Toast::builder()
-                        .title(gettext("Download started: {title}").replace("{title}", &show.title))
-                        .timeout(3)
-                        .build();
-                    toast_overlay.add_toast(toast);
+                    self.toast_overlay.add_toast(
+                        adw::Toast::builder()
+                            .title(
+                                gettext("Download started: {title}")
+                                    .replace("{title}", &row.show().title),
+                            )
+                            .timeout(3)
+                            .build(),
+                    );
                 }
-                Err(e) => {
-                    toast_overlay.add_toast(adw::Toast::new(
-                        &gettext("Could not start download: {reason}")
-                            .replace("{reason}", &e.to_string()),
-                    ));
+                Err(e) => self.toast(
+                    &gettext("Could not start download: {reason}")
+                        .replace("{reason}", &e.to_string()),
+                ),
+            },
+            RowAction::Cancel => {
+                if let Some(id) = row.download_id() {
+                    self.manager.cancel(id);
                 }
             }
+            RowAction::Open(path) => open_in_files(&self.window, &path),
         }
-        RowAction::Cancel => {
-            if let (Some(sid), Some(results)) = (show.id.as_deref(), results_weak.upgrade())
-                && let Some(id) = results.download_id_for(sid)
-            {
-                manager.cancel(id);
+    }
+
+    fn on_progress(&self, p: &Progress) {
+        // Late events of a download that was already cancelled or finished.
+        if !self.manager.is_active(p.id) {
+            return;
+        }
+        self.results.apply_progress(p);
+        self.downloads.apply_progress(p);
+        if !p.state.is_terminal() {
+            return;
+        }
+
+        self.manager.forget(p.id);
+        let message = match &p.state {
+            State::Done { .. } => gettext("Download finished: {title}"),
+            State::Failed { reason } => {
+                gettext("Download failed: {title} ({reason})").replace("{reason}", reason)
             }
-        }
-        RowAction::Open(path) => open_in_files(Some(&parent), &path),
-    });
-}
+            State::Cancelled => gettext("Download cancelled: {title}"),
+            State::Running { .. } => return,
+        };
+        self.toast(&message.replace("{title}", &p.title));
+    }
 
-/// Wire the Cancel/Open actions emitted by the Downloads page's rows. The row id
-/// is the download id, so Cancel maps straight onto the manager. Captures are
-/// Weak so this closure — stored on the long-lived page — never keeps the
-/// manager or window from dropping at close.
-fn wire_downloads_action(
-    downloads: &Rc<DownloadsPage>,
-    parent: &adw::ApplicationWindow,
-    manager: &Rc<Manager>,
-) {
-    let manager_weak = Rc::downgrade(manager);
-    let parent_weak = parent.downgrade();
-    downloads.connect_action(move |id, action| match action {
-        RowAction::Cancel => {
-            if let Some(manager) = manager_weak.upgrade() {
-                manager.cancel(id);
-            }
-        }
-        RowAction::Open(path) => open_in_files(parent_weak.upgrade().as_ref(), &path),
-        // A download row never offers the idle Download/Retry trigger.
-        RowAction::Download(_) | RowAction::Retry(_) => {}
-    });
-}
-
-/// Reveal a finished download in the file manager, selecting the file. Under
-/// Flatpak this goes through the `OpenURI` portal, so no extra filesystem
-/// permission is required.
-fn open_in_files(parent: Option<&adw::ApplicationWindow>, path: &std::path::Path) {
-    let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(path)));
-    launcher.open_containing_folder(parent, gio::Cancellable::NONE, |res| {
-        if let Err(e) = res {
-            log::warn!("could not reveal download in file manager: {e}");
-        }
-    });
-}
-
-/// Guard the window's close against losing in-flight downloads. With nothing
-/// running, close proceeds normally. Otherwise the close is held and a
-/// confirmation dialog appears; confirming deletes the partial files and quits,
-/// cancelling keeps the window open. Glotze never runs in the background — this
-/// is what keeps a stray close from silently dropping a download instead.
-fn wire_close_confirmation(window: &adw::ApplicationWindow, manager: &Rc<Manager>) {
-    let manager = Rc::clone(manager);
-    // Set once the user has confirmed, so the follow-up `win.close()` sails
-    // through this same handler instead of re-prompting forever.
-    let force_close = Rc::new(Cell::new(false));
-
-    window.connect_close_request(move |win| {
-        let n = manager.active_count();
-        if force_close.get() || n == 0 {
+    /// Guard the window's close against losing running downloads: with any in
+    /// flight, ask first. Confirming deletes their partial files and closes;
+    /// Glotze never runs in the background.
+    fn on_close_request(self: &Rc<Self>) -> glib::Propagation {
+        let n = self.manager.active_count();
+        if n == 0 {
             return glib::Propagation::Proceed;
         }
 
@@ -467,154 +285,136 @@ fn wire_close_confirmation(window: &adw::ApplicationWindow, manager: &Rc<Manager
         dialog.set_response_appearance("close", adw::ResponseAppearance::Destructive);
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
-
-        let win_close = win.clone();
-        let force_close = Rc::clone(&force_close);
-        let manager = Rc::clone(&manager);
-        dialog.connect_response(None, move |_dialog: &adw::AlertDialog, response: &str| {
-            if response != "close" {
-                return;
-            }
-            // Delete only our own tracked .part files, then let the close go
-            // through (the app quits, ending the workers).
-            manager.cleanup_partials();
-            force_close.set(true);
-            win_close.close();
-        });
-        dialog.present(Some(win));
+        dialog.connect_response(
+            Some("close"),
+            glib::clone!(
+                #[strong(rename_to = this)]
+                self,
+                move |_, _| {
+                    // With nothing active any more, this close goes through.
+                    this.manager.discard_all();
+                    this.window.close();
+                }
+            ),
+        );
+        dialog.present(Some(&self.window));
 
         glib::Propagation::Stop
-    });
-}
-
-fn wire_search(
-    search_entry: &gtk::SearchEntry,
-    results: &Rc<ResultsPage>,
-    toast_overlay: &adw::ToastOverlay,
-    client: Client,
-    generation: Rc<Cell<u64>>,
-    sort: Rc<Cell<Sort>>,
-    last_results: Rc<RefCell<Vec<Show>>>,
-) {
-    search_entry.connect_search_changed(glib::clone!(
-        #[strong]
-        results,
-        #[strong]
-        toast_overlay,
-        move |entry| {
-            run_search(
-                client.clone(),
-                entry.text().to_string(),
-                sort.get(),
-                last_results.clone(),
-                SearchGen::next(&generation),
-                results.clone(),
-                toast_overlay.clone(),
-            );
-        }
-    ));
-}
-
-/// Identifies one in-flight search so a slow response can tell it's been
-/// superseded by a newer query — the latest generation wins.
-#[derive(Clone)]
-struct SearchGen {
-    counter: Rc<Cell<u64>>,
-    mine: u64,
-}
-
-impl SearchGen {
-    /// Bump the shared counter and capture the new value as this search's id.
-    fn next(counter: &Rc<Cell<u64>>) -> Self {
-        let mine = counter.get().wrapping_add(1);
-        counter.set(mine);
-        Self {
-            counter: Rc::clone(counter),
-            mine,
-        }
     }
 
-    fn is_stale(&self) -> bool {
-        self.counter.get() != self.mine
+    fn toast(&self, message: &str) {
+        self.toast_overlay.add_toast(adw::Toast::new(message));
     }
 }
 
-/// Cold-start populate with the most recent entries (empty-query search).
-fn kick_initial_search(
-    client: Client,
-    generation: Rc<Cell<u64>>,
-    results: Rc<ResultsPage>,
-    toast_overlay: adw::ToastOverlay,
-    sort: Sort,
-    last_results: Rc<RefCell<Vec<Show>>>,
-) {
-    run_search(
-        client,
-        String::new(),
-        sort,
-        last_results,
-        SearchGen::next(&generation),
-        results,
-        toast_overlay,
+fn install_actions(this: &Rc<AppWindow>, view_stack: &adw::ViewStack) {
+    let search_focus = gio::ActionEntry::builder("search-focus")
+        .activate(glib::clone!(
+            #[strong]
+            this,
+            move |_: &adw::ApplicationWindow, _, _| {
+                this.search_entry.grab_focus();
+            }
+        ))
+        .build();
+    let show_search = gio::ActionEntry::builder("show-search")
+        .activate(glib::clone!(
+            #[strong]
+            view_stack,
+            move |_: &adw::ApplicationWindow, _, _| view_stack.set_visible_child_name("search")
+        ))
+        .build();
+    let show_downloads = gio::ActionEntry::builder("show-downloads")
+        .activate(glib::clone!(
+            #[strong]
+            view_stack,
+            move |_: &adw::ApplicationWindow, _, _| view_stack.set_visible_child_name("downloads")
+        ))
+        .build();
+    // Stateful action behind the sort menu; a change re-runs the search so the
+    // server picks the matching episodes, not just a re-ordered page.
+    let sort = gio::ActionEntry::builder("sort")
+        .parameter_type(Some(glib::VariantTy::STRING))
+        .state(Sort::default().id().to_variant())
+        .activate(glib::clone!(
+            #[strong]
+            this,
+            move |_: &adw::ApplicationWindow, action, param| {
+                if let Some(param) = param
+                    && let Some(sort) = param.str().and_then(Sort::from_id)
+                {
+                    action.set_state(param);
+                    this.sort.set(sort);
+                    this.search();
+                }
+            }
+        ))
+        .build();
+    this.window
+        .add_action_entries([search_focus, show_search, show_downloads, sort]);
+}
+
+fn sort_button() -> gtk::MenuButton {
+    let menu = gio::Menu::new();
+    menu.append(
+        Some(&gettext("Newest first")),
+        Some("win.sort::date-newest"),
     );
+    menu.append(
+        Some(&gettext("Oldest first")),
+        Some("win.sort::date-oldest"),
+    );
+    menu.append(
+        Some(&gettext("Longest first")),
+        Some("win.sort::duration-longest"),
+    );
+    menu.append(
+        Some(&gettext("Shortest first")),
+        Some("win.sort::duration-shortest"),
+    );
+    gtk::MenuButton::builder()
+        .icon_name("view-sort-descending-symbolic")
+        .tooltip_text(gettext("Sort results"))
+        .valign(gtk::Align::Center)
+        .menu_model(&menu)
+        .build()
 }
 
-fn run_search(
-    client: Client,
-    query: String,
-    sort: Sort,
-    last_results: Rc<RefCell<Vec<Show>>>,
-    generation: SearchGen,
-    results: Rc<ResultsPage>,
-    toast_overlay: adw::ToastOverlay,
-) {
-    if query.trim().is_empty() {
-        results.show_loading(
-            &gettext("Latest episodes"),
-            &gettext("Loading the most recent broadcasts…"),
-        );
-    } else {
-        results.show_loading(
-            &gettext("Searching…"),
-            &gettext("Looking for “{query}”").replace("{query}", &query),
-        );
-    }
+fn header_bar(view_stack: &adw::ViewStack) -> adw::HeaderBar {
+    let switcher = adw::ViewSwitcher::builder()
+        .stack(view_stack)
+        .policy(adw::ViewSwitcherPolicy::Wide)
+        .build();
 
-    glib::MainContext::default().spawn_local(async move {
-        let q = query.clone();
-        let outcome = gio::spawn_blocking(move || client.search(&q, 0, RESULTS_PAGE_SIZE, sort))
-            .await
-            .map_err(|_| anyhow::anyhow!("search worker panicked"));
+    let menu = gio::Menu::new();
+    menu.append(Some(&gettext("_About Glotze")), Some("app.about"));
+    let menu_button = gtk::MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .tooltip_text(gettext("Main Menu"))
+        .menu_model(&menu)
+        .primary(true)
+        .build();
 
-        if generation.is_stale() {
-            log::debug!("dropping stale search result for {query:?}");
-            return;
-        }
+    let welcome_button = gtk::Button::builder()
+        .icon_name("help-about-symbolic")
+        .tooltip_text(gettext("How Glotze works"))
+        .action_name("app.welcome")
+        .build();
 
-        match outcome {
-            Ok(Ok(shows)) => {
-                log::info!("search '{query}' -> {} results", shows.len());
-                last_results.borrow_mut().clone_from(&shows);
-                render_results(&results, &shows);
-            }
-            Ok(Err(e)) => {
-                log::error!("search '{query}' failed: {e:#}");
-                results.show_empty(
-                    &gettext("Search failed"),
-                    &gettext("Couldn’t reach mediathekviewweb.de — check your connection."),
-                );
-                toast_overlay.add_toast(adw::Toast::new(
-                    &gettext("Search failed: {error}").replace("{error}", &e.to_string()),
-                ));
-            }
-            Err(e) => {
-                log::error!("spawn_blocking failed: {e:#}");
-                toast_overlay.add_toast(adw::Toast::new(&gettext("Internal error during search")));
-            }
+    let header = adw::HeaderBar::builder().title_widget(&switcher).build();
+    header.pack_end(&menu_button);
+    header.pack_end(&welcome_button);
+    header
+}
+
+/// Reveal a finished download in the file manager, selecting the file. Under
+/// Flatpak this goes through the `OpenURI` portal, so no extra filesystem
+/// permission is required.
+fn open_in_files(parent: &adw::ApplicationWindow, path: &std::path::Path) {
+    let launcher = gtk::FileLauncher::new(Some(&gio::File::for_path(path)));
+    launcher.open_containing_folder(Some(parent), gio::Cancellable::NONE, |res| {
+        if let Err(e) = res {
+            log::warn!("could not reveal download in file manager: {e}");
         }
     });
-}
-
-fn render_results(results: &Rc<ResultsPage>, shows: &[Show]) {
-    results.set_shows(shows);
 }

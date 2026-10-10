@@ -32,6 +32,7 @@ pub struct Manager {
 }
 
 struct ActiveDownload {
+    show_id: Option<String>,
     title: String,
     /// Checked by the worker before each chunk.
     cancel: Arc<AtomicBool>,
@@ -70,6 +71,7 @@ impl Manager {
         self.active.borrow_mut().insert(
             id,
             ActiveDownload {
+                show_id: show.id.clone(),
                 title: show.title.clone(),
                 cancel: Arc::clone(&cancel),
                 part_path: part_path.clone(),
@@ -142,15 +144,26 @@ impl Manager {
         self.active.borrow().contains_key(&id)
     }
 
+    /// The running download of a show, if any, so a fresh search result row
+    /// can pick it up again.
+    pub fn active_for_show(&self, show_id: &str) -> Option<u64> {
+        self.active
+            .borrow()
+            .iter()
+            .find(|(_, d)| d.show_id.as_deref() == Some(show_id))
+            .map(|(id, _)| *id)
+    }
+
     pub fn active_count(&self) -> usize {
         self.active.borrow().len()
     }
 
-    /// Delete the partial files of all running downloads. Called when the user
-    /// confirms closing the window mid-download; the process exits right after,
-    /// taking the workers with it.
-    pub fn cleanup_partials(&self) {
-        for d in self.active.borrow().values() {
+    /// Stop all running downloads, delete their partial files, and forget
+    /// them. Called when the user confirms closing the window mid-download;
+    /// the process exits right after, taking the workers with it.
+    pub fn discard_all(&self) {
+        for (_, d) in self.active.borrow_mut().drain() {
+            d.cancel.store(true, Ordering::Relaxed);
             cleanup_partial(&d.part_path);
         }
     }

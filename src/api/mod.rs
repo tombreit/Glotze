@@ -91,7 +91,7 @@ impl Client {
     /// An empty `query` is interpreted as "give me the most recent episodes":
     /// the `queries` array is sent empty and future broadcasts are excluded.
     /// This is what populates the cold-start view.
-    pub fn search(&self, query: &str, offset: u32, size: u32, sort: Sort) -> Result<Vec<Show>> {
+    pub fn search(&self, query: &str, size: u32, sort: Sort) -> Result<Vec<Show>> {
         let is_recent = query.trim().is_empty();
         let queries = if is_recent {
             Vec::new()
@@ -108,10 +108,8 @@ impl Client {
             sort_order: sort_order.into(),
             // For the recent view we only want what already aired.
             future: !is_recent,
-            offset,
+            offset: 0,
             size,
-            duration_min: None,
-            duration_max: None,
         };
         let body = serde_json::to_string(&body)?;
 
@@ -152,10 +150,6 @@ struct QueryRequest {
     future: bool,
     offset: u32,
     size: u32,
-    #[serde(rename = "duration_min", skip_serializing_if = "Option::is_none")]
-    duration_min: Option<u64>,
-    #[serde(rename = "duration_max", skip_serializing_if = "Option::is_none")]
-    duration_max: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -173,7 +167,4 @@ struct Answer {
 #[derive(Deserialize)]
 struct AnswerResult {
     results: Vec<Show>,
-    #[serde(rename = "queryInfo")]
-    #[allow(dead_code)]
-    query_info: Option<serde_json::Value>,
 }

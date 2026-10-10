@@ -6,7 +6,7 @@ use gtk::{gdk, gio, glib};
 
 use crate::config;
 use crate::download::download_dir_display;
-use crate::window::AppWindow;
+use crate::window;
 
 pub fn run(app_id: &str) -> glib::ExitCode {
     let app = adw::Application::builder().application_id(app_id).build();
@@ -27,7 +27,7 @@ pub fn run(app_id: &str) -> glib::ExitCode {
             window.present();
             return;
         }
-        AppWindow::new(app).present();
+        window::build(app).present();
         maybe_show_welcome(app);
     });
 
