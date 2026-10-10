@@ -1,47 +1,48 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use adw::prelude::*;
 use gettextrs::gettext;
 use gtk::{gdk, gio, glib};
 
+use crate::config;
 use crate::download::download_dir_display;
 use crate::window::AppWindow;
 
-pub struct Application(adw::Application);
+pub fn run(app_id: &str) -> glib::ExitCode {
+    let app = adw::Application::builder().application_id(app_id).build();
 
-impl Application {
-    pub fn new(app_id: &str) -> Self {
-        let app = adw::Application::builder().application_id(app_id).build();
+    app.connect_startup(|app| {
+        register_dev_icon_path();
+        install_app_actions(app);
+        app.set_accels_for_action("app.quit", &["<Primary>q"]);
+        app.set_accels_for_action("app.about", &["<Primary>comma"]);
+        app.set_accels_for_action("win.search-focus", &["<Primary>f"]);
+        app.set_accels_for_action("win.show-search", &["<Primary>1"]);
+        app.set_accels_for_action("win.show-downloads", &["<Primary>2"]);
+    });
 
-        app.connect_startup(|app| {
-            register_dev_icon_path();
-            install_app_actions(app);
-            // Keyboard accelerators. Held centrally so users can override them
-            // via GSettings later (gtk-application-prefer-dark-theme style).
-            app.set_accels_for_action("app.quit", &["<Primary>q"]);
-            app.set_accels_for_action("app.about", &["<Primary>comma"]);
-            app.set_accels_for_action("win.search-focus", &["<Primary>f"]);
-            app.set_accels_for_action("win.show-search", &["<Primary>1"]);
-            app.set_accels_for_action("win.show-downloads", &["<Primary>2"]);
-        });
-
-        app.connect_activate(|app| {
-            let window = AppWindow::new(app);
+    app.connect_activate(|app| {
+        // Glotze is single-window: a second launch just raises the existing one.
+        if let Some(window) = app.active_window() {
             window.present();
-            maybe_show_welcome(app);
-        });
+            return;
+        }
+        AppWindow::new(app).present();
+        maybe_show_welcome(app);
+    });
 
-        Self(app)
-    }
-
-    pub fn run(&self) -> glib::ExitCode {
-        self.0.run()
-    }
+    app.run()
 }
 
 fn install_app_actions(app: &adw::Application) {
+    // Close the windows rather than `app.quit()`, so the close-request handler
+    // still gets to confirm discarding running downloads.
     let quit = gio::ActionEntry::builder("quit")
-        .activate(|app: &adw::Application, _, _| app.quit())
+        .activate(|app: &adw::Application, _, _| {
+            for window in app.windows() {
+                window.close();
+            }
+        })
         .build();
     let about = gio::ActionEntry::builder("about")
         .activate(|app: &adw::Application, _, _| show_about(app))
@@ -177,17 +178,14 @@ fn show_welcome(app: &adw::Application, marker: Option<PathBuf>) {
 }
 
 /// When running from `cargo run` the app's SVG icon isn't yet in any installed
-/// hicolor theme, so the About dialog and window icon would be blank. Point
-/// the icon theme at `data/icons/` if it exists relative to the cwd.
+/// hicolor theme, so the About dialog and window icon would be blank. Point the
+/// icon theme at the source tree's `data/icons`.
 fn register_dev_icon_path() {
-    let Some(display) = gdk::Display::default() else {
+    if !config::UNINSTALLED {
         return;
-    };
-    let theme = gtk::IconTheme::for_display(&display);
-    for candidate in ["data/icons", "../data/icons"] {
-        if Path::new(candidate).join("hicolor").is_dir() {
-            theme.add_search_path(candidate);
-            return;
-        }
+    }
+    if let Some(display) = gdk::Display::default() {
+        gtk::IconTheme::for_display(&display)
+            .add_search_path(format!("{}/icons", config::PKGDATADIR));
     }
 }

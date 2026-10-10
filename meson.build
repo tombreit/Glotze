@@ -14,10 +14,11 @@ project(
 
 i18n = import('i18n')
 
-prefix    = get_option('prefix')
-bindir    = prefix / get_option('bindir')
-datadir   = prefix / get_option('datadir')
-localedir = prefix / get_option('localedir')
+prefix     = get_option('prefix')
+bindir     = prefix / get_option('bindir')
+datadir    = prefix / get_option('datadir')
+localedir  = prefix / get_option('localedir')
+pkgdatadir = datadir / 'glotze'
 
 application_id  = 'io.github.tombreit.Glotze'
 bin_name        = 'glotze'
@@ -52,6 +53,7 @@ custom_target(
   env: {
     'GETTEXT_PACKAGE': gettext_package,
     'LOCALEDIR'      : localedir,
+    'PKGDATADIR'     : pkgdatadir,
     'APP_ID'         : application_id,
   },
   command: [

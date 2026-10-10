@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
-use std::time::Duration;
 
 use adw::prelude::*;
 use gettextrs::{gettext, ngettext};
@@ -13,7 +12,8 @@ use crate::ui::downloads_page::DownloadsPage;
 use crate::ui::results_page::ResultsPage;
 use crate::ui::row::RowAction;
 
-const SEARCH_DEBOUNCE_MS: u32 = 300;
+/// Delay before `search-changed` fires, so typing doesn't spam the API.
+const SEARCH_DELAY_MS: u32 = 300;
 const RESULTS_PAGE_SIZE: u32 = 30;
 
 pub struct AppWindow {
@@ -34,6 +34,7 @@ impl AppWindow {
 
         let search_entry = gtk::SearchEntry::builder()
             .placeholder_text(gettext("Search title or topic…"))
+            .search_delay(SEARCH_DELAY_MS)
             .hexpand(true)
             .build();
         // Sort control: a menu button driven by the stateful `win.sort` action,
@@ -489,60 +490,21 @@ fn wire_search(
     sort: Rc<Cell<Sort>>,
     last_results: Rc<RefCell<Vec<Show>>>,
 ) {
-    let pending_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-
     search_entry.connect_search_changed(glib::clone!(
         #[strong]
         results,
         #[strong]
         toast_overlay,
-        #[strong]
-        client,
-        #[strong]
-        pending_timer,
-        #[strong]
-        generation,
-        #[strong]
-        sort,
-        #[strong]
-        last_results,
         move |entry| {
-            if let Some(id) = pending_timer.borrow_mut().take() {
-                id.remove();
-            }
-            let query = entry.text().to_string();
-            let id = glib::timeout_add_local_once(
-                Duration::from_millis(u64::from(SEARCH_DEBOUNCE_MS)),
-                glib::clone!(
-                    #[strong]
-                    results,
-                    #[strong]
-                    toast_overlay,
-                    #[strong]
-                    client,
-                    #[strong]
-                    pending_timer,
-                    #[strong]
-                    generation,
-                    #[strong]
-                    sort,
-                    #[strong]
-                    last_results,
-                    move || {
-                        pending_timer.replace(None);
-                        run_search(
-                            client.clone(),
-                            query.clone(),
-                            sort.get(),
-                            last_results.clone(),
-                            SearchGen::next(&generation),
-                            results.clone(),
-                            toast_overlay.clone(),
-                        );
-                    }
-                ),
+            run_search(
+                client.clone(),
+                entry.text().to_string(),
+                sort.get(),
+                last_results.clone(),
+                SearchGen::next(&generation),
+                results.clone(),
+                toast_overlay.clone(),
             );
-            *pending_timer.borrow_mut() = Some(id);
         }
     ));
 }

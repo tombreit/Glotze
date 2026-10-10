@@ -7,7 +7,6 @@ mod net;
 mod ui;
 mod window;
 
-use application::Application;
 use glib::GlibLogger;
 
 // Route the `log` facade into GLib's structured logging (→ journald under
@@ -22,5 +21,5 @@ fn main() -> gtk::glib::ExitCode {
     log::set_logger(&GLIB_LOGGER).expect("logger already set");
     log::set_max_level(log::LevelFilter::Debug);
     i18n::init();
-    Application::new(config::APP_ID).run()
+    application::run(config::APP_ID)
 }

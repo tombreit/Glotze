@@ -3,7 +3,7 @@
 // vars are absent and `option_env!` yields None, which config.rs falls back
 // for — that keeps `cargo run` working for local development.
 fn main() {
-    for var in ["GETTEXT_PACKAGE", "LOCALEDIR", "APP_ID"] {
+    for var in ["GETTEXT_PACKAGE", "LOCALEDIR", "PKGDATADIR", "APP_ID"] {
         println!("cargo:rerun-if-env-changed={var}");
         if let Ok(val) = std::env::var(var) {
             println!("cargo:rustc-env={var}={val}");

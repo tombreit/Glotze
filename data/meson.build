@@ -33,11 +33,11 @@ install_data(
   install_dir: datadir / 'licenses' / application_id,
 )
 
-# Channel logos -> $datadir/glotze/channels (== /app/share/glotze/channels in
-# the sandbox). src/ui/logo.rs falls back to exactly this path, so keep it.
+# Channel logos -> $pkgdatadir/channels; the path is compiled into the binary
+# via the PKGDATADIR env var (see ../meson.build and src/config.rs).
 install_subdir(
   'channels',
-  install_dir: datadir / 'glotze',
+  install_dir: pkgdatadir,
 )
 
 # --- metadata validation (soft-guarded so missing tools don't fail the build) -
