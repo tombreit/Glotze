@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: glotze\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-01 19:06+0200\n"
+"POT-Creation-Date: 2026-10-10 02:13+0200\n"
 "PO-Revision-Date: 2026-05-28 00:00+0000\n"
 "Last-Translator: tombreit <tombreit@gmail.com>\n"
 "Language-Team: German <gnome-de@gnome.org>\n"
@@ -22,8 +22,8 @@ msgstr ""
 # data/io.github.tombreit.Glotze.metainfo.xml.in
 # ---------------------------------------------------------------------------
 #: data/io.github.tombreit.Glotze.desktop.in:2
-#: data/io.github.tombreit.Glotze.metainfo.xml.in:6 src/application.rs:57
-#: src/window.rs:27
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:6 src/application.rs:58
+#: src/window.rs:45
 msgid "Glotze"
 msgstr "Glotze"
 
@@ -120,11 +120,11 @@ msgstr "Sendung"
 msgid "Main Glotze view"
 msgstr "Hauptansicht von Glotze"
 
-#: data/io.github.tombreit.Glotze.metainfo.xml.in:86
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:98
 msgid "Polished app, build system and distribution."
 msgstr "App, Build-System und Distribution überarbeitet."
 
-#: data/io.github.tombreit.Glotze.metainfo.xml.in:92
+#: data/io.github.tombreit.Glotze.metainfo.xml.in:104
 msgid ""
 "Initial milestone: search MediathekViewWeb, pick quality, download to ~/"
 "Videos."
@@ -139,7 +139,7 @@ msgstr ""
 #. Rust sees at runtime — `\<newline>` line-continuation in Rust strips
 #. the leading whitespace on the next line, but the C parser keeps it,
 #. and that mismatch breaks msgid lookup against the catalogue.
-#: src/application.rs:69
+#: src/application.rs:70
 msgid ""
 "Licensed under the [European Union Public Licence v1.2 (EUPL-1.2)](https://"
 "eupl.eu/). See the LICENSE file or visit [eupl.eu](https://eupl.eu/) for the "
@@ -149,31 +149,31 @@ msgstr ""
 "eupl.eu/). Den vollständigen Text findest du in der LICENSE-Datei oder unter "
 "[eupl.eu](https://eupl.eu/)."
 
-#: src/application.rs:74
+#: src/application.rs:75
 msgid "Repository"
 msgstr "Repository"
 
-#: src/application.rs:75
+#: src/application.rs:76
 msgid "Donate"
 msgstr "Spenden"
 
-#: src/application.rs:83
+#: src/application.rs:84
 msgid "MediathekViewWeb - API provider"
 msgstr "MediathekViewWeb – API-Anbieter"
 
-#: src/application.rs:87
+#: src/application.rs:88
 msgid "Zapp - Android app that inspired Glotze"
 msgstr "Zapp – Android-App, die Glotze inspiriert hat"
 
-#: src/application.rs:91
+#: src/application.rs:92
 msgid "App icon - inspired by TestChart"
 msgstr "App-Symbol – inspiriert von TestChart"
 
-#: src/application.rs:95
+#: src/application.rs:96
 msgid "gtk-rs - Provides bindings for GTK-related libraries"
 msgstr "gtk-rs – stellt Bindings für GTK-bezogene Bibliotheken bereit"
 
-#: src/application.rs:134
+#: src/application.rs:135
 #, rust-format
 msgid ""
 "Glotze <b>downloads</b> episodes for you — there's no streaming and no built-"
@@ -197,26 +197,38 @@ msgstr ""
 "„Glotze“ ist liebevolle deutsche Umgangssprache für den Fernseher – ungefähr "
 "„die Kiste“ oder „die Flimmerkiste“."
 
-#: src/application.rs:146
+#: src/application.rs:147
 msgid "Welcome to Glotze"
 msgstr "Willkommen bei Glotze"
 
-#: src/application.rs:150
+#: src/application.rs:151
 msgid "_Got it"
 msgstr "_Verstanden"
 
-#: src/application.rs:156
+#: src/application.rs:157
 msgid "Don't show this again"
 msgstr "Nicht mehr anzeigen"
+
+#: src/download/mod.rs:58
+msgid "no video in this quality"
+msgstr "kein Video in dieser Qualität"
+
+#: src/download/mod.rs:60
+msgid "no Videos folder found"
+msgstr "kein Videos-Ordner gefunden"
+
+#: src/download/mod.rs:283
+msgid "your Videos folder"
+msgstr "deinem Videos-Ordner"
 
 # ---------------------------------------------------------------------------
 # src/ui/downloads_page.rs
 # ---------------------------------------------------------------------------
-#: src/ui/downloads_page.rs:57
+#: src/ui/downloads_page.rs:31
 msgid "No downloads yet"
 msgstr "Noch keine Downloads"
 
-#: src/ui/downloads_page.rs:59
+#: src/ui/downloads_page.rs:33
 #, rust-format
 msgid ""
 "Pick an episode on the Search page and choose a quality. Downloads are saved "
@@ -228,171 +240,175 @@ msgstr ""
 # ---------------------------------------------------------------------------
 # src/ui/results_page.rs
 # ---------------------------------------------------------------------------
-#: src/ui/downloads_page.rs:65 src/ui/results_page.rs:57
+#: src/ui/downloads_page.rs:39 src/ui/results_page.rs:28
 msgid "Search a Mediathek"
 msgstr "Mediathek durchsuchen"
 
-#: src/ui/results_page.rs:59
+#. / "23 May 2026", with the month name in the user's locale.
+#. Translators: g_date_time_format() pattern for the broadcast date column,
+#. e.g. "%-d. %b %Y" for German.
+#: src/ui/format.rs:23
+msgid "%-d %b %Y"
+msgstr "%-d. %b %Y"
+
+#: src/ui/results_page.rs:30
 msgid "Type into the search field above to find episodes."
 msgstr "Tippe oben ins Suchfeld, um Sendungen zu finden."
 
-#: src/ui/results_page.rs:121
+#: src/ui/results_page.rs:81
 msgid "No results"
 msgstr "Keine Treffer"
 
-#: src/ui/results_page.rs:122
+#: src/ui/results_page.rs:82
 msgid "No episodes matched your search."
 msgstr "Keine Sendungen passen zur Suche."
 
 # ---------------------------------------------------------------------------
 # src/ui/row.rs
 # ---------------------------------------------------------------------------
-#: src/ui/row.rs:134
+#: src/ui/row.rs:159
 msgid "Broadcast date"
 msgstr "Sendedatum"
 
-#: src/ui/row.rs:142
+#: src/ui/row.rs:164
 msgid "Broadcast start time (Europe/Berlin)"
 msgstr "Sendebeginn (Europe/Berlin)"
 
-#: src/ui/row.rs:155
+#: src/ui/row.rs:172
 msgid "Duration"
 msgstr "Dauer"
 
-#: src/ui/row.rs:206
-msgid "Website"
-msgstr "Website"
-
-#: src/ui/row.rs:211
-msgid "Open this episode on the broadcaster's page"
-msgstr "Diese Sendung auf der Senderseite öffnen"
-
-#: src/ui/row.rs:232
+#: src/ui/row.rs:226
 msgid "Choose video quality"
 msgstr "Videoqualität wählen"
 
-#: src/ui/row.rs:234
+#: src/ui/row.rs:232
 msgid "Low"
 msgstr "Niedrig"
 
-#: src/ui/row.rs:235
+#: src/ui/row.rs:233
 msgid "Medium"
 msgstr "Mittel"
 
-#: src/ui/row.rs:264 src/ui/row.rs:399
+#: src/ui/row.rs:413
 msgid "Download"
 msgstr "Herunterladen"
 
-#: src/ui/row.rs:272 src/ui/row.rs:401
+#: src/ui/row.rs:419
 msgid "Not available"
 msgstr "Nicht verfügbar"
 
-#: src/ui/row.rs:410
+#: src/ui/row.rs:425
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: src/ui/row.rs:420
+#. Reveals the file in the file manager, so the folder icon — not
+#. a play icon — matches what happens.
+#: src/ui/row.rs:431
 msgid "Open"
 msgstr "Öffnen"
 
-#: src/ui/row.rs:427
+#: src/ui/row.rs:434
 msgid "Retry"
 msgstr "Erneut versuchen"
 
-#: src/ui/row.rs:475
+#: src/ui/row.rs:456
 msgid "Download complete"
 msgstr "Download abgeschlossen"
 
-#: src/ui/row.rs:483
+#: src/ui/row.rs:460
 #, rust-format
 msgid "Download failed: {reason}"
 msgstr "Download fehlgeschlagen: {reason}"
 
+#: src/ui/row.rs:481
+msgid "Website"
+msgstr "Website"
+
+#: src/ui/row.rs:486
+msgid "Open this episode on the broadcaster's page"
+msgstr "Diese Sendung auf der Senderseite öffnen"
+
 # ---------------------------------------------------------------------------
 # src/window.rs
 # ---------------------------------------------------------------------------
-#: src/window.rs:36
+#: src/window.rs:50
 msgid "Search title or topic…"
 msgstr "Titel oder Thema suchen …"
 
-#: src/window.rs:43
-msgid "Newest first"
-msgstr "Neueste zuerst"
-
-#: src/window.rs:47
-msgid "Oldest first"
-msgstr "Älteste zuerst"
-
-#: src/window.rs:51
-msgid "Longest first"
-msgstr "Längste zuerst"
-
-#: src/window.rs:55
-msgid "Shortest first"
-msgstr "Kürzeste zuerst"
-
-#: src/window.rs:60
-msgid "Sort results"
-msgstr "Ergebnisse sortieren"
-
-#: src/window.rs:89
+#: src/window.rs:79
 msgid "Search"
 msgstr "Suche"
 
-#: src/window.rs:95
+#: src/window.rs:85
 msgid "Downloads"
 msgstr "Downloads"
 
-#: src/window.rs:154
-msgid "Network unavailable"
-msgstr "Netzwerk nicht verfügbar"
+#: src/window.rs:152
+msgid "Latest episodes"
+msgstr "Neueste Sendungen"
 
-#: src/window.rs:155
+#: src/window.rs:153
+msgid "Loading the most recent broadcasts…"
+msgstr "Neueste Sendungen werden geladen …"
+
+#: src/window.rs:157
+msgid "Searching…"
+msgstr "Suche läuft …"
+
+#: src/window.rs:158
 #, rust-format
-msgid "Glotze couldn't initialise its HTTP client: {error}"
-msgstr "Glotze konnte den HTTP-Client nicht initialisieren: {error}"
+msgid "Looking for “{query}”"
+msgstr "Suche nach „{query}“"
 
-#: src/window.rs:176
-msgid "_About Glotze"
-msgstr "_Über Glotze"
+#: src/window.rs:181
+msgid "Search failed"
+msgstr "Suche fehlgeschlagen"
 
-#: src/window.rs:180
-msgid "Main Menu"
-msgstr "Hauptmenü"
+#: src/window.rs:182
+msgid "Couldn’t reach mediathekviewweb.de — check your connection."
+msgstr ""
+"mediathekviewweb.de ist nicht erreichbar – prüfe deine Internetverbindung."
 
-#: src/window.rs:187
-msgid "How Glotze works"
-msgstr "Wie Glotze funktioniert"
-
-#: src/window.rs:327
+#: src/window.rs:185
 #, rust-format
-msgid "Download finished: {title}"
-msgstr "Download abgeschlossen: {title}"
+msgid "Search failed: {error}"
+msgstr "Suche fehlgeschlagen: {error}"
 
-#: src/window.rs:332
-#, rust-format
-msgid "Download failed: {title} ({reason})"
-msgstr "Download fehlgeschlagen: {title} ({reason})"
+#: src/window.rs:190
+msgid "Internal error during search"
+msgstr "Interner Fehler bei der Suche"
 
-#: src/window.rs:339
-#, rust-format
-msgid "Download cancelled: {title}"
-msgstr "Download abgebrochen: {title}"
-
-#: src/window.rs:384
+#: src/window.rs:219
 #, rust-format
 msgid "Download started: {title}"
 msgstr "Download gestartet: {title}"
 
-#: src/window.rs:391
-msgid "Could not start download (URL missing)."
-msgstr "Download konnte nicht gestartet werden (URL fehlt)."
+#: src/window.rs:227
+#, rust-format
+msgid "Could not start download: {reason}"
+msgstr "Download konnte nicht gestartet werden: {reason}"
 
-#: src/window.rs:460
+#: src/window.rs:253
+#, rust-format
+msgid "Download finished: {title}"
+msgstr "Download abgeschlossen: {title}"
+
+#: src/window.rs:255
+#, rust-format
+msgid "Download failed: {title} ({reason})"
+msgstr "Download fehlgeschlagen: {title} ({reason})"
+
+#: src/window.rs:257
+#, rust-format
+msgid "Download cancelled: {title}"
+msgstr "Download abgebrochen: {title}"
+
+#: src/window.rs:273
 msgid "Close Glotze?"
 msgstr "Glotze schließen?"
 
-#: src/window.rs:463
+#: src/window.rs:276
 #, rust-format
 msgid ""
 "A download is still in progress. Closing now cancels it and discards the "
@@ -407,48 +423,52 @@ msgstr[1] ""
 "{n} Downloads laufen noch. Beim Schließen werden sie abgebrochen und die "
 "unvollständigen Dateien verworfen."
 
-#: src/window.rs:470
+#: src/window.rs:283
 msgid "_Keep Open"
 msgstr "_Geöffnet lassen"
 
-#: src/window.rs:471
+#: src/window.rs:284
 msgid "_Close Anyway"
 msgstr "_Trotzdem schließen"
 
-#: src/window.rs:617
-msgid "Latest episodes"
-msgstr "Neueste Sendungen"
+#: src/window.rs:360
+msgid "Newest first"
+msgstr "Neueste zuerst"
 
-#: src/window.rs:618
-msgid "Loading the most recent broadcasts…"
-msgstr "Neueste Sendungen werden geladen …"
+#: src/window.rs:364
+msgid "Oldest first"
+msgstr "Älteste zuerst"
 
-#: src/window.rs:622
-msgid "Searching…"
-msgstr "Suche läuft …"
+#: src/window.rs:368
+msgid "Longest first"
+msgstr "Längste zuerst"
 
-#: src/window.rs:623
+#: src/window.rs:372
+msgid "Shortest first"
+msgstr "Kürzeste zuerst"
+
+#: src/window.rs:377
+msgid "Sort results"
+msgstr "Ergebnisse sortieren"
+
+#: src/window.rs:390
+msgid "_About Glotze"
+msgstr "_Über Glotze"
+
+#: src/window.rs:393
+msgid "Main Menu"
+msgstr "Hauptmenü"
+
+#: src/window.rs:400
+msgid "How Glotze works"
+msgstr "Wie Glotze funktioniert"
+
+#~ msgid "Network unavailable"
+#~ msgstr "Netzwerk nicht verfügbar"
+
 #, rust-format
-msgid "Looking for “{query}”"
-msgstr "Suche nach „{query}“"
-
-#: src/window.rs:647
-msgid "Search failed"
-msgstr "Suche fehlgeschlagen"
-
-#: src/window.rs:648
-msgid "Couldn’t reach mediathekviewweb.de — check your connection."
-msgstr ""
-"mediathekviewweb.de ist nicht erreichbar – prüfe deine Internetverbindung."
-
-#: src/window.rs:651
-#, rust-format
-msgid "Search failed: {error}"
-msgstr "Suche fehlgeschlagen: {error}"
-
-#: src/window.rs:656
-msgid "Internal error during search"
-msgstr "Interner Fehler bei der Suche"
+#~ msgid "Glotze couldn't initialise its HTTP client: {error}"
+#~ msgstr "Glotze konnte den HTTP-Client nicht initialisieren: {error}"
 
 #~ msgid "Stands on the shoulders of"
 #~ msgstr "Steht auf den Schultern von"
