@@ -103,11 +103,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The builder action uploads the bundle as artifact
+      # "<bundle stem>-<arch>.flatpak", containing glotze.flatpak. Fetching it
+      # by exact name also fails loudly if it's missing (a pattern that
+      # matches nothing just downloads zero files).
       - name: Download bundle
         uses: actions/download-artifact@v8
         with:
-          pattern: glotze.flatpak*
-          merge-multiple: true
+          name: glotze-x86_64.flatpak
 
       # `--notes` is prepended to the auto-generated notes, giving every release
       # install instructions up top. The Nix path has no file artifact — its
