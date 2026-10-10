@@ -15,7 +15,7 @@ concurrency:
 jobs:
   format:
     name: fmt + potfiles + packaging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -30,7 +30,7 @@ jobs:
 
   clippy-and-test:
     name: clippy + test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Fedora latest ships GTK 4 + libadwaita 1.8 (≥ our 1.7 minimum) in dnf,
     # and rustup gives us current-stable Rust regardless of distro version.
     # tzdata: the date-formatting tests need Europe/Berlin.
