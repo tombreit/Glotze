@@ -28,6 +28,11 @@ pub fn format_time(unix_seconds: i64) -> String {
     format_berlin(unix_seconds, "%H:%M")
 }
 
+/// "2026-05-23", for download filenames.
+pub fn format_iso_date(unix_seconds: i64) -> String {
+    format_berlin(unix_seconds, "%Y-%m-%d")
+}
+
 /// Broadcast times are German local time regardless of the user's own zone.
 fn format_berlin(unix_seconds: i64, pattern: &str) -> String {
     let tz =

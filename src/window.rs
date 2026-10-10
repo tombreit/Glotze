@@ -7,7 +7,10 @@ use gtk::{gio, glib};
 
 use crate::api::models::Show;
 use crate::api::{Client, Sort};
-use crate::download::{Manager, progress::State};
+use crate::download::{
+    Manager,
+    progress::{Progress, State},
+};
 use crate::ui::downloads_page::DownloadsPage;
 use crate::ui::results_page::ResultsPage;
 use crate::ui::row::RowAction;
@@ -117,7 +120,8 @@ impl AppWindow {
         // ureq builds its TLS config lazily, so constructing the client can't
         // fail; any network problems surface per-search in `run_search`.
         let client = Client::new();
-        let manager = Manager::new();
+        let (manager, progress_rx) = Manager::new();
+        let manager = Rc::new(manager);
         let generation = Rc::new(Cell::new(0u64));
 
         wire_search(
@@ -145,7 +149,7 @@ impl AppWindow {
             Rc::clone(&manager),
         );
         wire_close_confirmation(&window, &manager);
-        wire_progress_consumer(downloads, &results, &manager, &toast_overlay);
+        wire_progress_consumer(downloads, &results, &manager, &toast_overlay, progress_rx);
 
         Self { window }
     }
@@ -263,8 +267,8 @@ fn wire_progress_consumer(
     results: &Rc<ResultsPage>,
     manager: &Rc<Manager>,
     toast_overlay: &adw::ToastOverlay,
+    rx: async_channel::Receiver<Progress>,
 ) {
-    let rx = manager.progress_rx();
     // `downloads` is owned strongly by the future — nothing else holds a
     // strong ref to the Rust wrapper (view_stack only keeps the GTK widget),
     // and without it the page's rows HashMap would drop the moment
@@ -286,11 +290,12 @@ fn wire_progress_consumer(
             ) else {
                 break;
             };
+            // Late events of a download that was already cancelled or finished.
+            if !manager.is_active(p.id) {
+                continue;
+            }
 
-            let is_terminal = matches!(
-                p.state,
-                State::Done { .. } | State::Failed { .. } | State::Cancelled
-            );
+            let is_terminal = p.state.is_terminal();
             let title = p.title.clone();
             let id = p.id;
             let state = p.state.clone();
@@ -361,24 +366,25 @@ fn wire_row_action(
     results.connect_action(move |show, action| match action {
         RowAction::Download(quality) | RowAction::Retry(quality) => {
             match manager.enqueue(&show, quality) {
-                Some(info) => {
+                Ok(id) => {
                     if let (Some(sid), Some(results)) = (show.id.as_deref(), results_weak.upgrade())
                     {
-                        results.track_download(info.id, sid);
+                        results.track_download(id, sid);
                     }
                     // Mirror the show onto the Downloads page as an
                     // always-expanded row keyed by the download id.
-                    downloads.add_download(info.id, &show);
+                    downloads.add_download(id, &show);
                     let toast = adw::Toast::builder()
-                        .title(gettext("Download started: {title}").replace("{title}", &info.title))
+                        .title(gettext("Download started: {title}").replace("{title}", &show.title))
                         .timeout(3)
                         .build();
                     toast_overlay.add_toast(toast);
                 }
-                None => {
-                    toast_overlay.add_toast(adw::Toast::new(&gettext(
-                        "Could not start download (URL missing).",
-                    )));
+                Err(e) => {
+                    toast_overlay.add_toast(adw::Toast::new(
+                        &gettext("Could not start download: {reason}")
+                            .replace("{reason}", &e.to_string()),
+                    ));
                 }
             }
         }
