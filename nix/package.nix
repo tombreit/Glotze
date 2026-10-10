@@ -83,7 +83,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   meta = {
     description = "Search and download videos from public broadcaster Mediatheken (DACH region)";
-    homepage = "https://github.com/tombreit/Glotze";
+    homepage = "https://tombreit.github.io/Glotze/";
     license = lib.licenses.eupl12;
     mainProgram = "glotze";
     platforms = lib.platforms.linux;

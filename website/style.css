@@ -1,0 +1,254 @@
+/* Glotze website: plain CSS, no build step. Colours follow libadwaita.
+ *
+ * fonts/AdwaitaSans.woff2 is a Latin subset of Adwaita Sans 51.0 (SIL OFL, see
+ * fonts/OFL.txt), made with:
+ *   python3 -m fontTools.subset /usr/share/fonts/truetype/adwaita/AdwaitaSans-Regular.ttf \
+ *     --unicodes="U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+20AC,U+2122,U+2190-2193,U+2212" \
+ *     --layout-features='*' --flavor=woff2 --output-file=fonts/AdwaitaSans.woff2
+ * It has its own family name, so visitors with Adwaita Sans installed (GNOME 48+)
+ * use their system font and never download it.
+ */
+@font-face {
+  font-family: "Adwaita Sans Web";
+  src: url("fonts/AdwaitaSans.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  --bg: #fafafb;
+  --card: #ffffff;
+  --card-shadow: 0 0 0 1px rgb(0 0 6 / 3%), 0 1px 3px 1px rgb(0 0 6 / 7%),
+    0 2px 6px 2px rgb(0 0 6 / 3%);
+  --fg: rgb(0 0 6 / 80%);
+  --fg-dim: rgb(0 0 6 / 55%);
+  --separator: rgb(0 0 6 / 7%);
+  --accent: #1c71d8;
+  --accent-bg: #3584e4;
+  --button: rgb(0 0 6 / 8%);
+  --code: rgb(0 0 6 / 5%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #222226;
+    --card: #2e2e32;
+    --card-shadow: 0 0 0 1px rgb(0 0 6 / 9%), 0 1px 3px 1px rgb(0 0 6 / 18%),
+      0 2px 6px 2px rgb(0 0 6 / 9%);
+    --fg: #ffffff;
+    --fg-dim: rgb(255 255 255 / 60%);
+    --separator: rgb(255 255 255 / 7%);
+    --accent: #78aeed;
+    --button: rgb(255 255 255 / 10%);
+    --code: rgb(255 255 255 / 6%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Adwaita Sans", "Adwaita Sans Web", Cantarell, system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+main,
+footer {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+section {
+  margin: 56px 0;
+}
+
+/* Hero */
+.hero {
+  padding: 64px 0 16px;
+  text-align: center;
+}
+
+.hero > img {
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 20%));
+}
+
+h1 {
+  margin: 16px 0 8px;
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0 0 16px;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.intro {
+  max-width: 36em;
+  margin: 0 auto 24px;
+  color: var(--fg-dim);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.button {
+  display: inline-block;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  background: var(--button);
+  color: var(--fg);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button.suggested {
+  background: var(--accent-bg);
+  color: #ffffff;
+}
+
+.button:hover {
+  filter: brightness(1.08);
+}
+
+/* Screenshots: the PNGs already carry the window's rounded corners and shadow. */
+figure {
+  margin: 0 0 32px;
+}
+
+figcaption {
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Boxed list and cards, like libadwaita's */
+.boxed-list,
+.card {
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+}
+
+.boxed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boxed-list li {
+  padding: 12px 16px;
+}
+
+.boxed-list li + li {
+  border-top: 1px solid var(--separator);
+}
+
+.boxed-list strong {
+  display: block;
+}
+
+.boxed-list span,
+.card p,
+.note {
+  color: var(--fg-dim);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 12px;
+}
+
+/* Install cards hold commands to copy: give each the full width. */
+#install .cards {
+  grid-template-columns: 1fr;
+}
+
+.card {
+  min-width: 0; /* lets a long <pre> scroll instead of widening the page */
+  padding: 16px 20px;
+}
+
+.card p {
+  margin: 0 0 12px;
+}
+
+.card .button {
+  margin-bottom: 8px;
+}
+
+.note {
+  font-size: 0.9rem;
+}
+
+pre,
+code {
+  font-family: "Adwaita Mono", monospace;
+}
+
+pre {
+  margin: 8px 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--code);
+  font-size: 0.85rem;
+}
+
+/* Footer */
+footer {
+  padding-bottom: 48px;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+footer p {
+  margin: 6px 0;
+}

@@ -58,10 +58,10 @@ fn show_about(app: &adw::Application) {
         .application_name(gettext("Glotze"))
         .application_icon(app.application_id().unwrap_or_default())
         .version(env!("CARGO_PKG_VERSION"))
-        .developer_name("tombreit")
-        .website("https://thms.de")
+        .developer_name("Thomas Breitner")
+        .website("https://tombreit.github.io/Glotze/")
         .issue_url("https://github.com/tombreit/Glotze/issues")
-        .copyright("© 2026 tombreit")
+        .copyright("© 2026 Thomas Breitner")
         .license_type(gtk::License::Custom)
         // Single physical line so xgettext's C parser extracts the same string
         // Rust sees at runtime — `\<newline>` line-continuation in Rust strips

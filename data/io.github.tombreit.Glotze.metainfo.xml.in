@@ -25,10 +25,10 @@
   </description>
   <launchable type="desktop-id">io.github.tombreit.Glotze.desktop</launchable>
   <developer id="io.github.tombreit">
-    <name>tombreit</name>
+    <name>Thomas Breitner</name>
   </developer>
   <update_contact>tombreit_at_gmail.com</update_contact>
-  <url type="homepage">https://github.com/tombreit/Glotze</url>
+  <url type="homepage">https://tombreit.github.io/Glotze/</url>
   <url type="bugtracker">https://github.com/tombreit/Glotze/issues</url>
   <url type="vcs-browser">https://github.com/tombreit/Glotze</url>
   <url type="donation">https://ko-fi.com/thmsde</url>

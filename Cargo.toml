@@ -1,10 +1,13 @@
 [package]
 name = "glotze"
 version = "0.0.19"
+authors = ["Thomas Breitner"]
 edition = "2024"
 rust-version = "1.92"
 description = "Search and download videos from public broadcaster Mediatheken (DACH region)."
 license = "EUPL-1.2"
+homepage = "https://tombreit.github.io/Glotze/"
+repository = "https://github.com/tombreit/Glotze"
 publish = false  # binary-only app; not on crates.io
 
 [dependencies]

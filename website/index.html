@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Glotze searches and downloads shows from the public broadcasters of Germany, Austria and Switzerland. A GNOME app.">
+  <meta name="author" content="Thomas Breitner">
+  <title>Glotze – Mediathek downloads for GNOME</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <img src="icon.svg" alt="" width="128" height="128">
+      <h1>Glotze</h1>
+      <p class="tagline">Search and download shows from the public broadcasters of Germany, Austria and Switzerland</p>
+      <p class="intro">
+        Glotze searches the Mediatheken of ARD, ZDF, 3sat, arte, ORF, SRF and more through
+        MediathekViewWeb and saves episodes to your Videos folder for offline viewing.
+        No streaming, no built-in player — Glotze hands you the file and steps out of the way.
+      </p>
+      <div class="buttons">
+        <a class="button suggested" href="#install">Install</a>
+        <a class="button" href="https://github.com/tombreit/Glotze">Source Code</a>
+      </div>
+    </header>
+
+    <section aria-label="Screenshots">
+      <figure>
+        <img src="screenshots/glotze-main-view.png" width="2458" height="1558"
+             alt="Glotze's search page listing recent episodes with channel logos, broadcast date, time and duration">
+        <figcaption>Search the combined catalogue of the public broadcasters</figcaption>
+      </figure>
+      <figure>
+        <img src="screenshots/glotze-downloads-view.png" width="2458" height="1558" loading="lazy"
+             alt="Glotze's downloads page with an episode being downloaded">
+        <figcaption>Follow your downloads</figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>What Glotze Does</h2>
+      <ul class="boxed-list">
+        <li><strong>One search for everything</strong>
+          <span>Titles and topics across the MediathekViewWeb catalogue, newest broadcasts first.</span></li>
+        <li><strong>Pick a quality</strong>
+          <span>Low, Medium or HD — whatever the broadcaster offers for an episode.</span></li>
+        <li><strong>Plain files in your folder</strong>
+          <span>Downloads land in <code>~/Videos/Glotze</code> with a live progress bar. Open them with any video player.</span></li>
+        <li><strong>Sandboxed</strong>
+          <span>As a Flatpak, Glotze can only write to <code>~/Videos/Glotze</code> and reach the network.</span></li>
+      </ul>
+      <p class="note">Some videos are geo-blocked to Germany, Austria or Switzerland by the broadcasters.
+        “Glotze” is affectionate German slang for a TV set — roughly “the telly”.</p>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Flatpak Repository</h3>
+          <p>Recommended. Updates arrive through Software or <code>flatpak update</code>.</p>
+          <a class="button suggested" href="Glotze.flatpakref">Install Glotze</a>
+          <p class="note">or in a terminal:</p>
+          <pre>flatpak install https://tombreit.github.io/Glotze/Glotze.flatpakref</pre>
+        </div>
+        <div class="card">
+          <h3>Single File</h3>
+          <p>The bundle from the latest release, without automatic updates.</p>
+          <a class="button" href="https://github.com/tombreit/Glotze/releases/latest/download/glotze.flatpak">Download</a>
+          <pre>flatpak install --user ./glotze.flatpak</pre>
+        </div>
+        <div class="card">
+          <h3>Nix</h3>
+          <p>Run it straight from the flake, or pin a release tag.</p>
+          <pre>nix run github:tombreit/Glotze</pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Get Involved</h2>
+      <div class="cards">
+        <div class="card">
+          <h3><a href="https://github.com/tombreit/Glotze/issues">Report a Problem</a></h3>
+          <p>Something broken or missing? Open an issue on GitHub.</p>
+        </div>
+        <div class="card">
+          <h3><a href="https://github.com/tombreit/Glotze">Contribute</a></h3>
+          <p>Code and translations (in <code>po/</code>) are welcome as pull requests.</p>
+        </div>
+        <div class="card">
+          <h3><a href="https://ko-fi.com/thmsde">Donate</a></h3>
+          <p>Support the development of Glotze.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 Thomas Breitner · Glotze is free software under the
+      <a href="https://eupl.eu/">EUPL-1.2</a> · <a href="https://github.com/tombreit/Glotze">Source</a></p>
+    <p>Data from <a href="https://mediathekviewweb.de/">MediathekViewWeb</a> ·
+      inspired by <a href="https://github.com/mediathekview/zapp">Zapp</a> ·
+      icon based on <a href="https://commons.wikimedia.org/wiki/File:TestChart_similar_to_old_TV_testscreens.svg">TestChart</a> (CC0) ·
+      set in <a href="https://gitlab.gnome.org/GNOME/adwaita-fonts">Adwaita Sans</a> (<a href="fonts/OFL.txt">OFL</a>)</p>
+    <p>Page design inspired by <a href="https://apps.gnome.org/">Apps for GNOME</a> and
+      <a href="https://release.gnome.org/">GNOME Release Notes</a>.
+      Glotze is not affiliated with the broadcasters or the GNOME project.</p>
+  </footer>
+</body>
+</html>

@@ -3,6 +3,8 @@
 A GNOME-native desktop client for searching and downloading videos from
 public broadcaster Mediatheken (DACH region), eg. ARD, ZDF, 3sat, arte,…
 
+Website: <https://tombreit.github.io/Glotze/>
+
 ![Glotze main view](data/screenshots/glotze-main-view.png)
 *Main view: search results*
 
@@ -166,6 +168,17 @@ the new tag.
 Distribution via my own flatpak repository, hosted on Github Pages, is done via
 a Github Action:
 
+#### Website
+
+`website/` is the GitHub Pages root: a single static page (`index.html`,
+`style.css`, a self-hosted Adwaita Sans subset) next to the Flatpak repo
+descriptors. The app icon and screenshots are symlinks into `data/`. It goes
+live with the next release tag. Preview it locally:
+
+```sh
+python3 -m http.server -d website 8000   # then open http://localhost:8000
+```
+
 #### Setup GPG
 
 ```bash
@@ -176,7 +189,7 @@ gpg --quick-generate-key "Glotze Flatpak Repo <mail@thms.de>" rsa4096 sign never
 gpg --fingerprint mail@thms.de
 
 # Commit the public key
-gpg --export <FINGERPRINT> > distribution/glotze.gpg
+gpg --export <FINGERPRINT> > website/glotze.gpg
 
 # base64 public key for GPGKey= of glotze.flatpakrepo and Glotze.flatpakref
 gpg --export <FINGERPRINT> | base64 --wrap=0
@@ -197,7 +210,8 @@ manually on a tag; a manual run on a branch only builds):
    from that repo.
 1. Runs `flatpak build-update-repo`,
    producing a signed OSTree repo on the `stable` branch.
-1. Copies `distribution/` and drops the freshly built repo at `repo/`.
+1. Copies `website/` (the page plus the `.flatpakref`/`.flatpakrepo`/key) and
+   drops the freshly built repo at `repo/`.
 1. Attaches the bundle to the GitHub release and deploys the site to GitHub Pages.
 
 ## Acknowledgments
