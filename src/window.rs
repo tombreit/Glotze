@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -30,6 +30,8 @@ struct AppWindow {
     manager: Manager,
     client: Client,
     sort: Cell<Sort>,
+    /// The trimmed query of the latest search.
+    query: RefCell<String>,
     /// Bumped per search, so a slow response can tell it has been superseded.
     generation: Cell<u64>,
 }
@@ -101,14 +103,21 @@ pub fn build(app: &adw::Application) -> adw::ApplicationWindow {
         manager,
         client: Client::new(),
         sort: Cell::new(Sort::default()),
+        query: RefCell::new(String::new()),
         generation: Cell::new(0),
     });
 
     install_actions(&this, &view_stack);
+    // `search-changed` also fires without an actual edit (e.g. once after
+    // `search-delay` is set), and for whitespace-only edits; skip those.
     this.search_entry.connect_search_changed(glib::clone!(
         #[strong]
         this,
-        move |_| this.search()
+        move |entry| {
+            if entry.text().trim() != *this.query.borrow() {
+                this.search();
+            }
+        }
     ));
     window.connect_close_request(glib::clone!(
         #[strong]
@@ -143,6 +152,7 @@ impl AppWindow {
     /// sort order, replacing the result list.
     fn search(self: &Rc<Self>) {
         let query = self.search_entry.text().trim().to_string();
+        self.query.replace(query.clone());
         let sort = self.sort.get();
         let generation = self.generation.get() + 1;
         self.generation.set(generation);
