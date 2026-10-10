@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "glotze"
-version = "0.0.20"
+version = "0.0.21"
 dependencies = [
  "anyhow",
  "async-channel",
