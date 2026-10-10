@@ -158,8 +158,9 @@ cargo release patch --execute    # do it for real
 In one step this runs `./build-aux/checks.sh` (fmt, clippy, test, …), bumps the
 version, inserts a new `<release>` block into the metainfo, commits, tags
 `v<version>`, and pushes the commit + tag. The tag push then triggers
-`flatpak.yml`, which builds once, signs the result, attaches `glotze.flatpak` to
-the GitHub release and refreshes the signed Flatpak repo on GitHub Pages. The
+`flatpak.yml`, which builds once, signs the result, attaches `glotze.flatpak` and
+the signed repo (`flatpak-repo.tar.gz`) to the GitHub release, and redeploys
+GitHub Pages so it serves the new repo. The
 Nix flake needs nothing extra — `github:tombreit/Glotze/v<version>` resolves to
 the new tag.
 
@@ -172,8 +173,13 @@ a Github Action:
 
 `website/` is the GitHub Pages root: a single static page (`index.html`,
 `style.css`, a self-hosted Adwaita Sans subset) next to the Flatpak repo
-descriptors. The app icon and screenshots are symlinks into `data/`. It goes
-live with the next release tag. Preview it locally:
+descriptors. The app icon and screenshots are symlinks into `data/`.
+
+`.github/workflows/pages.yml` deploys it whenever `website/` (or the icon and
+screenshots in `data/`) changes on `main` — no release needed — and after every
+release; it can also be run by hand from the Actions tab. A Pages deploy
+replaces the whole site, so each run combines `website/` with the signed Flatpak
+repo taken from the latest release's `flatpak-repo.tar.gz`. Preview locally:
 
 ```sh
 python3 -m http.server -d website 8000   # then open http://localhost:8000
@@ -210,9 +216,10 @@ manually on a tag; a manual run on a branch only builds):
    from that repo.
 1. Runs `flatpak build-update-repo`,
    producing a signed OSTree repo on the `stable` branch.
-1. Copies `website/` (the page plus the `.flatpakref`/`.flatpakrepo`/key) and
-   drops the freshly built repo at `repo/`.
-1. Attaches the bundle to the GitHub release and deploys the site to GitHub Pages.
+1. Attaches the bundle and the packed repo (`flatpak-repo.tar.gz`) to the
+   GitHub release.
+1. Calls `pages.yml`, which deploys `website/` plus that repo (at `repo/`) to
+   GitHub Pages.
 
 ## Acknowledgments
 

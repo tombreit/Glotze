@@ -1,10 +1,10 @@
 name: Flatpak
 
 # Builds the Flatpak on every push and PR. On a v* tag (cargo release pushes
-# one) that same build is also GPG-signed and published: the bundle is attached
-# to the GitHub release, and the OSTree repo is deployed to GitHub Pages
-# (https://tombreit.github.io/Glotze/). One build, so the bundle and the repo
-# always contain identical binaries.
+# one) that same build is also GPG-signed and published: the bundle and the
+# OSTree repo (flatpak-repo.tar.gz) are attached to the GitHub release, then
+# pages.yml deploys the repo to https://tombreit.github.io/Glotze/. One build,
+# so the bundle and the repo always contain identical binaries.
 
 on:
   push:
@@ -85,20 +85,19 @@ jobs:
       - name: Lint repo
         run: ./build-aux/checks.sh repo
 
-      # website/ is the site root; -L turns its symlinks (app icon,
-      # screenshots) into real files.
-      - name: Assemble Pages site
+      # The signed repo travels as a release asset; pages.yml takes it from the
+      # latest release, so the website can redeploy without a new build.
+      - name: Pack repo
         if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          mkdir -p public
-          cp -rL website/. public/
-          mv repo public/repo
+        run: tar -czf flatpak-repo.tar.gz repo
 
-      - name: Upload Pages artifact
+      - name: Upload repo
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          path: public
+          name: flatpak-repo
+          path: flatpak-repo.tar.gz
+          retention-days: 1
 
   release:
     name: GitHub release
@@ -117,10 +116,15 @@ jobs:
         with:
           name: glotze-x86_64.flatpak
 
+      - name: Download repo
+        uses: actions/download-artifact@v8
+        with:
+          name: flatpak-repo
+
       # `--notes` is prepended to the auto-generated notes, giving every release
       # install instructions up top. The Nix path has no file artifact — its
       # "artifact" is this tag, which the flake ref resolves reproducibly.
-      # A re-run only replaces the bundle on the existing release.
+      # A re-run only replaces the assets on the existing release.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,27 +153,23 @@ jobs:
           ```sh
           nix run github:tombreit/Glotze/__TAG__
           ```
+
+          `flatpak-repo.tar.gz` is the signed repository behind tombreit.github.io/Glotze;
+          you don't need it to install Glotze.
           EOF
           )
-          gh release create "$TAG" glotze.flatpak --repo "$GITHUB_REPOSITORY" \
+          assets=(glotze.flatpak flatpak-repo.tar.gz)
+          gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" \
               --verify-tag --generate-notes --notes "${notes//__TAG__/$TAG}" \
-            || gh release upload "$TAG" glotze.flatpak --repo "$GITHUB_REPOSITORY" --clobber
+            || gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
 
-  deploy-pages:
-    name: Deploy to Pages
-    needs: build
+  # Redeploy the site so it serves the repo from the release just created.
+  pages:
+    name: Pages
+    needs: release
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+    uses: ./.github/workflows/pages.yml

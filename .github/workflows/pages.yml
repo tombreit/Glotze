@@ -1,0 +1,68 @@
+name: Pages
+
+# Publishes https://tombreit.github.io/Glotze/: the website (website/) plus the
+# signed Flatpak repo of the latest GitHub release (its flatpak-repo.tar.gz
+# asset, attached by flatpak.yml). A deploy replaces the whole site, so the repo
+# has to come along every time; keeping it as a release asset lets website
+# changes go live on their own, without a release.
+#
+# Runs when the website changes on main, after each release (called by
+# flatpak.yml), and on demand from the Actions tab.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      # Targets of website/icon.svg and website/screenshots (symlinks).
+      - 'data/icons/**'
+      - 'data/screenshots/**'
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Assemble site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      # -L turns website/'s symlinks (app icon, screenshots) into real files.
+      # Without a release carrying flatpak-repo.tar.gz the download fails, and
+      # the live site stays untouched.
+      - name: Assemble site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir public
+          cp -rL website/. public/
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern flatpak-repo.tar.gz
+          tar -xzf flatpak-repo.tar.gz -C public
+          test -f public/repo/config
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
