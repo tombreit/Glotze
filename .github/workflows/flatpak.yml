@@ -34,7 +34,7 @@ jobs:
     container:
       # The gnome-NN tag must match runtime-version in the manifest;
       # `build-aux/checks.sh runtime_version` (run by lint.yml) enforces it.
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
     steps:
       - name: Check out
