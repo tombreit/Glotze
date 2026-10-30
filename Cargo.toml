@@ -20,7 +20,7 @@ async-channel = "2"
 anyhow        = "1"
 log           = "0.4"
 glib          = { version = "0.22", features = ["log", "v2_68"] }
-gettext-rs    = { version = "0.7", features = ["gettext-system"] }
+gettext-rs    = { version = "0.8", features = ["gettext-system"] }
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

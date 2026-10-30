@@ -6,7 +6,10 @@ use gettextrs::{LocaleCategory, bind_textdomain_codeset, bindtextdomain, setloca
 use crate::config;
 
 pub fn init() {
-    setlocale(LocaleCategory::LcAll, "");
+    // SAFETY: runs at the top of main(), before GTK or any other thread starts.
+    unsafe {
+        setlocale(LocaleCategory::LcAll, "");
+    }
     if let Err(e) = bindtextdomain(config::GETTEXT_PACKAGE, config::LOCALEDIR) {
         log::warn!("bindtextdomain failed: {e}");
     }
