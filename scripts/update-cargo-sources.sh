@@ -13,9 +13,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-# Pinned flatpak-builder-tools commit (2026-05-22). Bump deliberately to update
+# Pinned flatpak-builder-tools commit(2026-09-21). Bump deliberately to update
 # the generator; the cache filename embeds the ref so a bump forces a re-download.
-GENERATOR_REF="96e2fe8bf7d2e5791ca1bdce2dba373f1e27c425"
+GENERATOR_REF="41c20aa10819cdb2a4f3ca171758a96d1955c018"
 GENERATOR="$SCRIPT_DIR/flatpak-cargo-generator-$GENERATOR_REF.py"
 VENV="${CARGO_GEN_VENV:-/tmp/cargo-gen-venv}"
 
